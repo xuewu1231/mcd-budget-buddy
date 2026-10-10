@@ -1,0 +1,101 @@
+{
+  "source": "用户提供的 WorkBuddy 2026-10-10 试用记录，未经本代理独立实时复验",
+  "observedDate": "2026-10-10",
+  "budgetYuan": 30,
+  "priceStatus": "calculated",
+  "businessSuccess": true,
+  "selections": [
+    {
+      "productCode": "9900004835",
+      "quantity": 1,
+      "roundList": [
+        {
+          "round": "1",
+          "comboItemList": [
+            {
+              "code": "1401",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "round": "2",
+          "comboItemList": [
+            {
+              "code": "4810",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "round": "3",
+          "comboItemList": [
+            {
+              "code": "3071",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "requiresCustomization": true
+    }
+  ],
+  "request": {
+    "jsonrpc": "2.0",
+    "id": 41,
+    "method": "tools/call",
+    "params": {
+      "name": "calculate-price",
+      "arguments": {
+        "storeCode": "1950169",
+        "orderType": 1,
+        "beType": 1,
+        "items": [
+          {
+            "productCode": "9900004835",
+            "quantity": 1,
+            "roundList": [
+              {
+                "round": "1",
+                "comboItemList": [
+                  {
+                    "code": "1401",
+                    "quantity": 1
+                  }
+                ]
+              },
+              {
+                "round": "2",
+                "comboItemList": [
+                  {
+                    "code": "4810",
+                    "quantity": 1
+                  }
+                ]
+              },
+              {
+                "round": "3",
+                "comboItemList": [
+                  {
+                    "code": "3071",
+                    "quantity": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "result": {
+    "isError": false,
+    "price": 2500,
+    "discount": 0
+  },
+  "limitations": [
+    "响应未回显饮料选项；按该选配提交核算，接口返回此金额，不证明选配在最终订单中被确认",
+    "菜单 currentPrice 单位为元，calculate-price 返回为分，预算判定以分为准",
+    "该店当前无可用券（query-store-coupons 返回空列表）"
+  ]
+}
