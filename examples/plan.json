@@ -1,0 +1,100 @@
+{
+  "source": "用户提供的 WorkBuddy 历史记录摘要，非本代理实时复验",
+  "observedDate": "2026-10-09",
+  "budgetYuan": 30,
+  "priceStatus": "calculated",
+  "businessSuccess": true,
+  "selections": [
+    {
+      "productCode": "9900004835",
+      "quantity": 1,
+      "roundList": [
+        {
+          "round": "1",
+          "comboItemList": [
+            {
+              "code": "1401",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "round": "2",
+          "comboItemList": [
+            {
+              "code": "4810",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "round": "3",
+          "comboItemList": [
+            {
+              "code": "3071",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "requiresCustomization": true
+    }
+  ],
+  "request": {
+    "jsonrpc": "2.0",
+    "id": 31,
+    "method": "tools/call",
+    "params": {
+      "name": "calculate-price",
+      "arguments": {
+        "storeCode": "1950169",
+        "orderType": 1,
+        "beType": 1,
+        "items": [
+          {
+            "productCode": "9900004835",
+            "quantity": 1,
+            "roundList": [
+              {
+                "round": "1",
+                "comboItemList": [
+                  {
+                    "code": "1401",
+                    "quantity": 1
+                  }
+                ]
+              },
+              {
+                "round": "2",
+                "comboItemList": [
+                  {
+                    "code": "4810",
+                    "quantity": 1
+                  }
+                ]
+              },
+              {
+                "round": "3",
+                "comboItemList": [
+                  {
+                    "code": "3071",
+                    "quantity": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "result": {
+    "isError": false,
+    "price": 2500,
+    "discount": 0
+  },
+  "limitations": [
+    "响应未回显饮料选项",
+    "非实时价格"
+  ]
+}
