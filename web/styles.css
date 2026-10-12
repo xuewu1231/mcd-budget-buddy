@@ -21,3 +21,109 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 /* Keep the search icon clear of the shared form input padding. */
 .activity-search input[type=search]{padding-left:43px;padding-right:44px;min-height:46px;background:#f5f5f5;border-color:#eee}
+
+/* A meal is something to touch: choices, prices and waiting states share one language. */
+.skip-link{position:fixed;left:16px;top:-100px;z-index:30;background:#242424;color:#fff;padding:12px 18px;border-radius:12px}
+.skip-link:focus{top:12px}
+button,a,summary{touch-action:manipulation}
+button:not(:disabled),select,input{transition:background .18s,border-color .18s,box-shadow .18s,transform .18s}
+.primary:not(:disabled):hover{background:#ffd04b;box-shadow:0 4px 15px #ffbc0d30}
+.primary:not(:disabled):active,.meal-component:active,.meal-option:active{transform:scale(.98)}
+.budget-presets button[aria-pressed=true]{border-color:#ba8800;font-weight:800}
+.steps li[aria-current=step]{font-weight:800;color:#242424}
+.steps li.complete>span{background:#242424;color:#fff}
+.query-wait{display:flex;align-items:center;gap:14px;padding:17px;background:#fff8df;border:1px solid #eedfb7;border-radius:14px;margin:16px 0}
+.query-wait strong{font-size:15px}.query-wait p{font-size:12px;color:#75613e;line-height:1.7;margin:3px 0 0}
+#query-elapsed{font-size:12px;white-space:nowrap;margin-left:auto;color:#75613e;font-variant-numeric:tabular-nums}
+.loading-ring{width:28px;height:28px;border:3px solid #ffe6a2;border-top-color:#db0007;border-radius:50%;flex-shrink:0;animation:loading-spin .8s linear infinite}
+@keyframes loading-spin{to{transform:rotate(360deg)}}
+.is-loading>.ui-icon{animation:loading-spin 1.1s linear infinite}
+.store-skeleton,.plan-skeleton,.media-loading:after{background:linear-gradient(100deg,#f3f0e9 20%,#fffbf1 45%,#f3f0e9 70%);background-size:250% 100%;animation:loading-sheen 1.6s linear infinite}
+@keyframes loading-sheen{to{background-position:-250% 0}}
+.store-skeleton{height:85px;border-radius:13px;margin-bottom:10px}.plan-skeleton{height:310px;border-radius:20px;margin-top:18px}
+.media-loading,.media-error{position:relative;min-height:150px}
+.media-loading:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1}
+.media-loading img,.media-error img{opacity:0}
+.media-ready img{animation:poster-reveal .3s ease}
+@keyframes poster-reveal{from{opacity:0}to{opacity:1}}
+.media-caption{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#7d6740;padding:20px;z-index:2;pointer-events:none;background:transparent;text-align:center}
+.media-error{background:#fff8df!important}.media-error .poster-zoom{display:none}
+.media-retry{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:3;background:#ffbc0d;border-radius:25px;min-height:44px;padding:9px 18px;font-size:14px}
+#query-retry{margin-bottom:15px}
+.store[aria-pressed=true]{background:#fff6d6;border:2px solid #d59c00;box-shadow:0 0 0 3px #ffbc0d16}
+.store:hover:not(:disabled){background:#fff9e8;border-color:#d7b555}
+.plan-comparison{display:block;padding:20px;background:#fffaf0;border-radius:18px}
+.comparison-heading{display:flex;gap:12px;align-items:center}.comparison-heading>.ui-icon{background:#ffbc0d;width:38px;height:38px;padding:8px;border-radius:12px;flex-shrink:0}
+.comparison-heading strong{font-size:17px;line-height:1.7}.comparison-heading p{margin:2px 0 0;font-size:12px;color:#73633e}
+.price-chart{margin:17px 0 0;border-top:1px solid #e9e1cf;padding-top:16px;min-width:0}
+.price-chart figcaption{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:14px}
+.price-chart figcaption>span{font-size:12px;color:#777;font-weight:400}
+.price-chart svg{display:block;width:100%;height:auto;max-height:235px;overflow:visible;margin-top:12px}
+.chart-name{font-size:16px;fill:#4c4332;font-weight:650}.chart-amount{font-size:19px;fill:#ba0007;font-weight:850;font-variant-numeric:tabular-nums}
+.chart-axis{font-size:14px;fill:#746b5b}.chart-track{fill:#eee8dc}.chart-bar{fill:#ffbc0d}.chart-bar.alternate{fill:#343434}
+.chart-budget{stroke:#b09552;stroke-width:2;stroke-dasharray:4 4}
+.price-chart p{font-size:12px;line-height:1.7;color:#776d58;margin:8px 0 0}
+.chosen-plan{display:flex;gap:12px;align-items:center;background:#242424;color:#fff;border-radius:16px;padding:16px 18px;margin:18px 0}
+.chosen-plan>div{display:flex;align-items:center;gap:10px;flex:1;min-width:0}.chosen-plan .ui-icon{color:#ffbc0d;width:24px;height:24px}
+.chosen-plan small{display:block;color:#ffdb77;font-size:11px}.chosen-plan strong{font-size:15px;line-height:1.6}.chosen-plan>strong{font-size:22px;white-space:nowrap}
+.chosen-plan button{border-radius:25px;padding:10px 16px;min-height:44px;background:#ffbc0d;color:#242424;font-size:13px;font-weight:750;white-space:nowrap}
+.plan-card{transition:border-color .2s,box-shadow .2s;overflow:hidden}
+.plan-card.is-chosen{border:2px solid #dba000;box-shadow:0 4px 22px #ffbc0d20}
+.plan-card.is-pending{border-color:#e0b65a}
+.meal-plan-heading{display:flex;align-items:center;gap:11px;padding:19px 18px;background:#fffaf0;border-bottom:1px solid #efe8d9}
+.plan-letter{display:grid;place-items:center;width:35px;height:35px;background:#ffbc0d;border-radius:11px;font-weight:900;font-size:20px;flex-shrink:0}
+.meal-plan-heading>div{flex:1;min-width:0}.meal-plan-heading small{font-size:11px;color:#7c6c4b}
+.meal-plan-heading h3{font-size:17px;line-height:1.6;margin:2px 0 0;font-weight:850}
+.meal-plan-heading button{display:flex;align-items:center;justify-content:center;gap:3px;padding:8px 12px;min-height:40px;border:1px solid #dfce9a;background:#fff;border-radius:25px;font-size:12px;font-weight:750;white-space:nowrap}
+.meal-plan-heading button[aria-pressed=true]{background:#ffbc0d;border-color:#ffbc0d}
+.meal-plan-heading button .ui-icon{width:16px;height:16px}
+.tray-hint{display:flex;align-items:center;gap:5px;font-size:13px;color:#594b36;margin:0 0 13px}
+.tray-hint .ui-icon{width:18px;height:18px}.tray-hint>span{font-size:10px;color:#888;margin-left:auto}
+.meal-tray{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 19px;align-items:stretch}
+.meal-component{display:flex;flex-direction:column;align-items:center;position:relative;min-width:0;padding:11px 5px 9px;border-radius:15px;border:1px solid #eee4d2;background:#fffdf6;color:#242424;text-align:center}
+.meal-component:hover:not(:disabled){background:#fff3c7;border-color:#d4a526;box-shadow:0 5px 14px #c6952620}
+.component-round{font-size:10px;color:#8c784d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.food-art{display:block;width:100%;max-width:112px;height:auto;aspect-ratio:12/11;flex-shrink:0}
+.meal-component strong{font-size:12px;line-height:1.6;font-weight:700;margin:1px 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.component-action{display:flex;align-items:center;gap:3px;margin-top:auto;font-size:11px;font-weight:700;color:#956510}
+.component-action .ui-icon{width:13px;height:13px}.food-bun{transition:transform .25s}
+.meal-component:hover .food-bun{transform:translateY(-4px)}
+.plan-card .price-line{align-items:baseline;gap:7px;flex-wrap:wrap;margin-top:12px}
+.plan-card .price-line>span{font-size:11px}.all-rounds{border-bottom:1px solid #eee;padding-bottom:12px;margin-bottom:13px}
+.all-rounds summary{min-height:42px;display:flex;align-items:center;font-weight:650}
+.all-rounds summary:before{content:'＋';margin-right:7px;color:#976900;font-size:17px}.all-rounds[open] summary:before{content:'−'}
+#meal-editor{max-width:640px;padding:25px}#meal-editor-title{font-size:25px;line-height:1.5;margin-top:4px}
+#meal-editor-context{font-size:11px;line-height:1.7;max-width:95%}.meal-editor-options{border:0;padding:0;margin:15px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.meal-option{position:relative;display:flex;align-items:center;flex-direction:column;text-align:center;margin:0;padding:15px 12px;background:#faf8f2;border:2px solid #eee7d8;border-radius:17px;cursor:pointer;min-width:0;font-size:14px}
+.meal-option input[type=radio]{position:absolute;width:20px;height:20px;right:9px;top:9px;appearance:auto;accent-color:#9e7100;margin:0}
+.meal-option .food-art{max-width:120px}.meal-option strong{font-size:14px;line-height:1.7;font-weight:700}
+.meal-option:has(input:checked){background:#fff4c5;border-color:#d19a00;box-shadow:0 0 0 3px #ffbc0d20}
+.meal-option:focus-within{outline:3px solid #a77b00;outline-offset:3px}
+.option-tick{display:none}.editor-footer{position:sticky;bottom:-26px;background:#fff;padding:13px 0 8px;margin-top:15px;border-top:1px solid #eee}
+.editor-footer p{font-size:12px;color:#777;text-align:center;margin:0 0 12px}
+#meal-editor-options .meal-option:hover{border-color:#d1af67}
+.activity-card .favorite:hover{background:#fff2b8}.activity-card .favorite[aria-pressed=true]{border:2px solid #b08100}
+@media(max-width:950px){.meal-tray{gap:10px}.meal-component{padding:12px 9px}.meal-component strong{font-size:13px}.price-chart svg{max-height:260px}}
+@media(max-width:640px){
+ .query-wait{padding:14px;gap:10px;align-items:flex-start}.query-wait strong{font-size:13px}.query-wait p{font-size:11px}#query-elapsed{font-size:10px}.loading-ring{width:24px;height:24px}
+ .plan-comparison{padding:16px}.comparison-heading strong{font-size:15px}.comparison-heading p{font-size:11px}.comparison-heading>.ui-icon{width:32px;height:32px;padding:6px}
+ .price-chart figcaption{font-size:13px}.price-chart figcaption>span{font-size:11px}.price-chart p{font-size:11px}.price-chart svg{min-height:120px;max-height:195px}.chart-name{font-size:19px}.chart-amount{font-size:22px}.chart-axis{font-size:17px}
+ .meal-plan-heading{padding:16px 15px;gap:9px}.meal-plan-heading h3{font-size:17px}.meal-plan-heading small{font-size:10px}.meal-plan-heading button{padding:8px 10px;font-size:11px}.plan-letter{width:30px;height:30px;font-size:18px;border-radius:9px}
+ .plan-body{padding:17px!important}.tray-hint{font-size:12px}.tray-hint>span{font-size:9px}.meal-tray{gap:6px}.meal-component{padding:10px 4px 8px;border-radius:13px}.meal-component strong{font-size:11px;margin-bottom:8px}.component-round{font-size:9px}.component-action{font-size:10px}
+ .plan-card .price-line{gap:8px}.plan-card .price-line>span{font-size:10px}.plan-card details{font-size:12px}.all-rounds summary{min-height:40px}
+ .chosen-plan{padding:13px;gap:8px;flex-wrap:wrap}.chosen-plan>div{flex-basis:65%}.chosen-plan small{font-size:10px}.chosen-plan strong{font-size:13px}.chosen-plan>strong{font-size:20px;margin-left:auto}.chosen-plan button{margin-left:auto;min-height:40px;font-size:12px}
+ #meal-editor{padding:20px;max-height:88dvh}#meal-editor-title{font-size:23px}.meal-editor-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.meal-option{padding:13px 10px;border-radius:15px}.meal-option strong{font-size:13px}.editor-footer{bottom:-20px}
+ .store-comparison .price-chart{margin-top:14px}.media-caption{font-size:12px}
+}
+@media(max-width:360px){.meal-tray{grid-template-columns:repeat(2,minmax(0,1fr))}.meal-component:last-child:nth-child(odd){grid-column:1/-1;display:grid;grid-template-columns:70px 1fr;gap:0 8px;text-align:left;padding:10px 14px}.meal-component:last-child:nth-child(odd) .food-art{grid-row:1/4;grid-column:1}.meal-component:last-child:nth-child(odd) .component-round,.meal-component:last-child:nth-child(odd) strong,.meal-component:last-child:nth-child(odd) .component-action{grid-column:2}.meal-plan-heading h3{font-size:15px}.tray-hint>span{display:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+.chart-bar{animation:chart-grow .45s cubic-bezier(.2,.7,.3,1);transform-box:fill-box;transform-origin:left center}
+@keyframes chart-grow{from{transform:scaleX(0);opacity:.4}to{transform:scaleX(1);opacity:1}}
+@media(max-width:640px){.chart-name{font-size:27px}.chart-amount{font-size:30px}.chart-axis{font-size:24px}.meal-component strong{font-size:12px}.component-round{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.chart-bar{animation:none}}
+@media(max-width:640px){
+ #city,#location,#brief,#activity-search,#radar-date,#preference,.round-field select,.compare-controls select{font-size:16px}
+ .meal-plan-heading button,.budget-presets button,.activity-filters>button,.saved-filter,.nav-button,.chosen-plan button{min-height:44px}
+ .activity-search>button{width:44px;height:44px;top:1px;right:1px}
+ .dialog-title>button{width:44px;height:44px}
+}

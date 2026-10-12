@@ -28,3 +28,21 @@ test('未知价格与无效预算不产生图表或比较结论', () => {
 import {activityMatches} from '../web/api.js';
 test('活动搜索支持宣传中的特殊数字字形与大小写',()=>{assert.equal(activityMatches({title:'超值𝟗.𝟗元早餐',content:''},'breakfast','9.9'),true);assert.equal(activityMatches({title:'McD X PEACEMINUSONE'},'collab','peaceminusone'),true);});
 test('分类与搜索取交集，不把名字分类当作优惠规则',()=>{const e={title:'新品鸡腿堡',content:'联名上新'};assert.equal(activityMatches(e,'new','鸡腿'),true);assert.equal(activityMatches(e,'breakfast','鸡腿'),false);assert.equal(activityMatches(e,'collab','薯条'),false);assert.equal(activityMatches(e,'unknown',''),false);});
+
+import {priceChart, roundChoices, selectedChoice} from '../web/api.js';
+test('价格图不使用待核算、未知或小数分金额，并转义外部标签',()=>{
+ for(const price of [undefined,NaN,-1,12.5,'2500'])assert.equal(priceChart([{label:'A',priceFen:price}],3000),'');
+ assert.equal(priceChart([{priceFen:2500,dirty:true}],3000),'');
+ const html=priceChart([{label:'<script>A</script>',priceFen:2500},{label:'B',priceFen:2500}],3000);
+ assert.ok(html.includes('&lt;script&gt;A&lt;/script&gt;'));
+ assert.ok(!html.includes('<script>'));
+ assert.ok(html.includes('从 0 起'));
+ assert.equal((html.match(/width="400"/g)||[]).length,2);
+});
+test('图形选配保持真实编码映射，严格无糖排除反向描述',()=>{
+ const round={id:3,name:'选择饮料',choices:[{code:3050,name:'可乐'},{code:3071,name:'无糖可口可乐'},{code:3111,name:'无糖可口可乐大杯'},{code:9,name:'非无糖饮料'}]};
+ assert.deepEqual(roundChoices(round,true).map(x=>x.code),[3071,3111]);
+ const plan={roundList:[{round:'3',comboItemList:[{code:'3071'}]}]};
+ assert.equal(selectedChoice(plan,round).code,3071);
+ plan.changes={'3':'3111'};assert.equal(selectedChoice(plan,round).code,3111);
+});

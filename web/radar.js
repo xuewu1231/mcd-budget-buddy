@@ -1,4 +1,4 @@
-import {requestJSON,activityMatches,icon} from './api.js';
+import {requestJSON,activityMatches,icon,enhanceMedia} from './api.js';
 import {timeHint} from './discovery.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +14,7 @@ function updateTime(){
  document.querySelectorAll('[data-hint]').forEach(p=>{const e=eventsForDay().find(e=>e.id===p.dataset.hint);if(!e)return;const hint=timeHint(e,selectedDate,time);p.innerHTML=`${icon('clock')}<span>${esc(hint.text)}</span>`;p.closest('.activity-card').classList.toggle('match',hint.kind==='match');});
 }
 async function load(){
- const rev=++revision,firstLoad=data===null;$('refresh-radar').disabled=true;$('radar-retry').hidden=true;$('activity-cards').setAttribute('aria-busy','true');message('正在翻开活动日历…');
+ const rev=++revision,firstLoad=data===null;$('refresh-radar').disabled=true;$('refresh-radar').classList.add('is-loading');$('radar-retry').hidden=true;$('activity-cards').setAttribute('aria-busy','true');message('正在翻开活动日历…');
  if(firstLoad)$('activity-cards').innerHTML=Array.from({length:3},()=>'<div class="activity-skeleton" aria-hidden="true"><div></div><span></span><span></span></div>').join('');
  try{
   const result=await requestJSON('/api/discover',{body:{mode:'live'},timeoutMs:60000});if(rev!==revision)return;
@@ -24,13 +24,13 @@ async function load(){
   $('radar-stamp').textContent=`查询时间 ${new Date(data.observedAt).toLocaleString('zh-CN')}`;
   render();renderCoupons();message('活动已更新，选个日期看看。');
  }catch(e){if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';$('activity-results-caption').textContent='活动暂时未加载';$('radar-retry').hidden=false;message(`活动查询失败：${e.message}`,true);}}
- finally{if(rev===revision){$('refresh-radar').disabled=false;$('activity-cards').setAttribute('aria-busy','false');}}
+ finally{if(rev===revision){$('refresh-radar').disabled=false;$('refresh-radar').classList.remove('is-loading');$('activity-cards').setAttribute('aria-busy','false');}}
 }
 function openActivity(e){
  openedActivity=e;$('activity-dialog-title').textContent=e.title;$('activity-dialog-content').textContent=e.content||'接口未提供更多详情。';
  $('activity-dialog-hint').textContent=`官方活动日历 · ${e.date}。宣传价不是门店最终报价。`;
- $('activity-dialog-image').hidden=!e.image;$('activity-dialog-image').innerHTML=e.image?`<img src="${esc(e.image)}" alt="${esc(e.title)}活动海报" referrerpolicy="no-referrer">`:'';
- $('activity-dialog').showModal();document.body.classList.add('dialog-open');
+ $('activity-dialog-image').hidden=!e.image;$('activity-dialog-image').innerHTML=e.image?`<img data-media decoding="async" src="${esc(e.image)}" alt="${esc(e.title)}活动海报" referrerpolicy="no-referrer">`:'';
+ enhanceMedia($('activity-dialog-image'));$('activity-dialog').showModal();document.body.classList.add('dialog-open');
 }
 function render(){
  if(!data)return;
@@ -47,7 +47,7 @@ function render(){
  $('activity-cards').innerHTML=visible.length?visible.slice(0,visibleLimit).map(e=>{
   const hint=timeHint(e,selectedDate,clock()),isSaved=saved.includes(e.title),times=[...new Set(e.content.match(/\b\d{1,2}:\d{2}\b/g)||[])];
   const kind=e.type===2?'券活动':e.type===3?'品鉴会':e.type===6?'派对':'活动资讯';
-  return `<article class="activity-card ${hint.kind}">${e.image?`<button class="activity-image poster-button" data-poster="${esc(e.id)}" aria-label="查看海报：${esc(e.title)}"><img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="poster-zoom" aria-hidden="true">${icon('zoom')}放大海报</span></button>`:'<div class="activity-image illustrated"><span aria-hidden="true">✦</span><p>今天的小期待</p></div>'}<div class="activity-body"><div class="activity-meta"><span>${kind}</span><button class="favorite" data-favorite="${esc(e.id)}" aria-pressed="${isSaved}" aria-label="${isSaved?'取消':'添加'}本地收藏：${esc(e.title)}">${icon('star')}</button></div><h3>${esc(e.title)}</h3><p class="activity-timing" data-hint="${esc(e.id)}">${icon('clock')}<span>${esc(hint.text)}</span></p>${times.length?`<p class="article-time-hint">原文提到 ${times.map(esc).join(' / ')}，日期见详情</p>`:''}<p class="activity-excerpt">${esc(e.content.slice(0,64))}${e.content.length>64?'…':''}</p><button class="activity-detail" data-activity="${esc(e.id)}">看看详情 <span aria-hidden="true">${icon('arrow')}</span></button></div></article>`;
+  return `<article class="activity-card ${hint.kind}">${e.image?`<button class="activity-image poster-button" data-poster="${esc(e.id)}" aria-label="查看海报：${esc(e.title)}"><img data-media decoding="async" src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="poster-zoom" aria-hidden="true">${icon('zoom')}放大海报</span></button>`:'<div class="activity-image illustrated"><span aria-hidden="true">✦</span><p>今天的小期待</p></div>'}<div class="activity-body"><div class="activity-meta"><span>${kind}</span><button class="favorite" data-favorite="${esc(e.id)}" aria-pressed="${isSaved}" aria-label="${isSaved?'取消':'添加'}本地收藏：${esc(e.title)}">${icon('star')}</button></div><h3>${esc(e.title)}</h3><p class="activity-timing" data-hint="${esc(e.id)}">${icon('clock')}<span>${esc(hint.text)}</span></p>${times.length?`<p class="article-time-hint">原文提到 ${times.map(esc).join(' / ')}，日期见详情</p>`:''}<p class="activity-excerpt">${esc(e.content.slice(0,64))}${e.content.length>64?'…':''}</p><button class="activity-detail" data-activity="${esc(e.id)}">看看详情 <span aria-hidden="true">${icon('arrow')}</span></button></div></article>`;
  }).join(''):`<div class="radar-empty"><span aria-hidden="true">${icon('search')}</span><strong>${events.length?'暂时没找到符合筛选的活动':'这一天没有返回活动记录'}</strong><small>${events.length?'试试其他关键词，或者清除筛选。':'可以换个日期看看；没有记录不代表当天没有优惠。'}</small></div>`;
  if(visible.length>visibleLimit){const button=document.createElement('button');button.className='more-activities';button.textContent=`再看 ${Math.min(6,visible.length-visibleLimit)} 条活动 ↓`;button.onclick=()=>{const previousLimit=visibleLimit;visibleLimit+=6;render();document.querySelectorAll('[data-activity]')[previousLimit]?.focus({preventScroll:true});};$('activity-cards').append(button);}
  document.querySelectorAll('[data-favorite]').forEach(b=>b.onclick=()=>{
@@ -58,7 +58,7 @@ function render(){
  document.querySelectorAll('.activity-image img').forEach(img=>img.onerror=()=>{img.hidden=true;const label=img.parentElement.querySelector('.poster-zoom');if(label)label.textContent='海报暂未加载 · 查看详情 ↗';});
  if(focusedDay)document.querySelector(`[data-day="${focusedDay}"]`)?.focus({preventScroll:true});
  if(focusedFavorite){const target=[...document.querySelectorAll('[data-favorite]')].find(b=>b.dataset.favorite===focusedFavorite);(target||$('only-saved')).focus({preventScroll:true});}
- updateTime();
+ enhanceMedia($('activity-cards'));updateTime();
 }
 function renderCoupons(){
  $('claimable-coupons').innerHTML=data.coupons===null?`<p class="error">${esc(data.couponError)}</p>`:data.coupons.length?data.coupons.map(c=>`<div class="coupon-ticket"><span aria-hidden="true">${icon('ticket')}</span><div><strong>${esc(c.name)}</strong><small>${esc(c.label)} · 未领取，未核验门店适用性</small></div></div>`).join(''):'<p class="small-note">本次接口没有返回可领取的券。</p>';

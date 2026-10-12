@@ -1,8 +1,11 @@
-import {requestJSON,budgetView,comparePlans,icon} from './api.js';
+import {requestJSON,budgetView,comparePlans,icon,foodArt,roundChoices,selectedChoice,priceChart} from './api.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(n/100).toFixed(2);
-const state={stores:[],store:null,plans:[],result:null,busy:false,liveReady:false,revision:0};
+const state={stores:[],store:null,plans:[],result:null,busy:false,liveReady:false,revision:0,chosen:null};
+let waitTimer, retryAction, editorContext;
+const reducedMotion=()=>window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const scrollTo=e=>e.scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'});
 const controls=['city','location','budget','preference','sugar-free','brief','parse-brief','find-stores','recommend','toggle-conditions','compare-prices','compare-plan','compare-store','activity-to-plan','clear-activity-context'];
 async function api(route,body){
  try {const data=await requestJSON(`/api/${route}`,{body,timeoutMs:route==='recommend'?240000:route==='parse'?8000:60000});serviceState(true);return data;}
@@ -18,14 +21,30 @@ async function checkConnection(){
 $('reconnect').onclick=checkConnection;$('check-connection').onclick=checkConnection;
 
 function input(){return {mode:'live',city:$('city').value,keyword:$('location').value,budget:$('budget').value,preference:$('preference').value,sugarFree:$('sugar-free').checked,storeCode:state.store?.code};}
-function feedback(text,error=false){$('feedback').hidden=!text;$('feedback').textContent=text;$('feedback').classList.toggle('error',error);}
-function busy(value,text=''){state.busy=value;controls.forEach(id=>$(id).disabled=value);document.querySelectorAll('[data-budget],.store,.plan-card button,.plan-card select').forEach(e=>e.disabled=value);$('recommend').disabled=value||!state.store;if($('change-store'))$('change-store').disabled=value;if(!value)document.querySelectorAll('[data-copy]').forEach(b=>{const p=state.plans[Number(b.dataset.copy)];b.disabled=Boolean(p?.dirty||!p?.withinBudget);});if(text)feedback(text);}
-function progress(n){[1,2,3].forEach(i=>$(`step-${i}`).classList.toggle('active',i<=n));}
+function feedback(text,error=false){$('feedback').hidden=!text;$('feedback').textContent=text;$('feedback').classList.toggle('error',error);$('query-retry').hidden=!error||!retryAction;}
+$('query-retry').onclick=()=>{if(!state.busy)retryAction?.();};
+function busy(value,text=''){
+ state.busy=value;controls.forEach(id=>$(id).disabled=value);
+ document.querySelectorAll('[data-budget],.store,.plan-card button,.plan-card select,#chosen-plan button').forEach(e=>e.disabled=value);
+ $('recommend').disabled=value||!state.store;$('query-retry').disabled=value;
+ if($('change-store'))$('change-store').disabled=value;
+ if(!value)document.querySelectorAll('[data-copy]').forEach(b=>{const p=state.plans[Number(b.dataset.copy)];b.disabled=Boolean(p?.dirty||!p?.withinBudget);});
+ document.querySelector('.results-area').setAttribute('aria-busy',String(value));
+ $('query-wait').hidden=!value;clearInterval(waitTimer);
+ if(value){
+  $('query-retry').hidden=true;$('query-wait-label').textContent=text||'正在查询真实价格';
+  $('query-wait-detail').textContent='正在等待真实接口，不用重复点击。';$('query-elapsed').textContent='0 秒';
+  const started=Date.now();waitTimer=setInterval(()=>{const elapsed=Math.floor((Date.now()-started)/1000);$('query-elapsed').textContent=`${elapsed} 秒`;if(elapsed>=10)$('query-wait-detail').textContent='需要读取套餐详情与完整选配，仍在等待接口返回。';},1000);
+ }
+ if(text)feedback(text);
+}
+function progress(n){[1,2,3].forEach(i=>{const step=$(`step-${i}`);step.classList.toggle('active',i<=n);step.classList.toggle('complete',i<n);if(i===n)step.setAttribute('aria-current','step');else step.removeAttribute('aria-current');});}
 function compactConditions(value){$('workspace').classList.toggle('compact-conditions',value);$('toggle-conditions').setAttribute('aria-expanded',String(!value));$('toggle-conditions').textContent=value?'展开条件 ↓':'收起条件 ↑';}
 $('toggle-conditions').onclick=()=>compactConditions(!$('workspace').classList.contains('compact-conditions'));
-function clearPlans(){progress(state.store?2:1);compactConditions(false);$('plan-comparison').hidden=true;$('store-comparison').hidden=true;$('store-compare-result').textContent='';state.plans=[];state.result=null;state.revision++;$('plans').innerHTML='';$('evidence').hidden=true;$('empty-state').hidden=false;$('selection-summary').hidden=true;if(state.store)$('store-section').hidden=false;}
+function clearPlans(){retryAction=null;$('query-retry').hidden=true;progress(state.store?2:1);compactConditions(false);$('chosen-plan').hidden=true;state.chosen=null;$('plan-comparison').hidden=true;$('store-comparison').hidden=true;$('store-compare-result').textContent='';state.plans=[];state.result=null;state.revision++;$('plans').innerHTML='';$('evidence').hidden=true;$('empty-state').hidden=false;$('selection-summary').hidden=true;if(state.store)$('store-section').hidden=false;}
 function resetStores(){clearPlans();state.store=null;state.stores=[];$('store-section').hidden=true;$('recommend').disabled=true;progress(1);}
-function budgetUI(){$('budget-caption').textContent=`¥${$('budget').value}`;document.querySelectorAll('[data-budget]').forEach(b=>b.classList.toggle('selected',b.dataset.budget===$('budget').value));}
+function rememberPreferences(){try{localStorage.setItem('mcd-meal-preferences',JSON.stringify({budget:$('budget').value,preference:$('preference').value,sugarFree:$('sugar-free').checked}));}catch{}}
+function budgetUI(){$('budget-caption').textContent=`¥${$('budget').value}`;document.querySelectorAll('[data-budget]').forEach(b=>{const selected=b.dataset.budget===$('budget').value;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});rememberPreferences();}
 $('toolbar-settings').onclick=()=>$('connection').click();
 $('connection').onclick=()=>{$('settings').showModal();document.body.classList.add('dialog-open');};
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{if(!document.querySelector('dialog[open]'))document.body.classList.remove('dialog-open');}));
@@ -33,10 +52,10 @@ $('download-skill').onclick=async()=>{try{let r;try{r=await fetch('/api/skill');
 document.querySelectorAll('[data-budget]').forEach(b=>b.onclick=()=>{$('budget').value=b.dataset.budget;budgetUI();clearPlans();feedback('预算已更新，请重新生成方案。');});
 ['budget','preference','sugar-free'].forEach(id=>$(id).addEventListener('change',()=>{budgetUI();clearPlans();progress(state.store?2:1);feedback('条件已更新，请重新生成方案。');}));
 ['city','location'].forEach(id=>$(id).addEventListener('change',()=>{resetStores();feedback('地点已更新，请重新查询门店。');}));
-$('parse-brief').onclick=async()=>{busy(true);try{const d=await api('parse',{text:$('brief').value});if(d.budget)$('budget').value=d.budget;if(d.preference)$('preference').value=d.preference;if(d.sugarFree)$('sugar-free').checked=true;budgetUI();clearPlans();feedback(Object.keys(d).length===1?'没有识别到支持的关键词，请直接修改条件。':'已提取支持的关键词，请核对下方条件。');}catch(e){feedback(e.message,true);}finally{busy(false);}};
+$('parse-brief').onclick=async()=>{retryAction=()=>$('parse-brief').click();busy(true,'正在提取预算与偏好…');try{const d=await api('parse',{text:$('brief').value});if(d.budget)$('budget').value=d.budget;if(d.preference)$('preference').value=d.preference;if(d.sugarFree)$('sugar-free').checked=true;budgetUI();clearPlans();feedback(Object.keys(d).length===1?'没有识别到支持的关键词，请直接修改条件。':'已提取支持的关键词，请核对下方条件。');}catch(e){feedback(e.message,true);}finally{busy(false);}};
 function renderStores(){$('stores').innerHTML=state.stores.map((s,i)=>`<button class="store ${state.store?.code===s.code?'selected':''}" data-store="${i}" aria-pressed="${state.store?.code===s.code}"><span class="pin">${icon('location')}</span><span><strong>${esc(s.name)}</strong><small>${esc(s.address)}</small></span><span class="distance">${Number.isFinite(s.distance)?esc(s.distance)+'m':'距离未知'} ${icon(state.store?.code===s.code?'check':'arrow')}</span></button>`).join('');document.querySelectorAll('[data-store]').forEach(b=>b.onclick=()=>{state.store=state.stores[Number(b.dataset.store)];clearPlans();renderStores();$('recommend').disabled=false;feedback(`已选择 ${state.store.name}，可以开始生成方案。`);});}
-$('search-form').onsubmit=async e=>{e.preventDefault();resetStores();busy(true,'正在查询附近门店…');try{const d=await api('stores',input());state.stores=d.stores;renderStores();$('store-section').hidden=false;progress(2);feedback(d.stores.length?'请先选择一家门店。':'当前没有返回可用门店，请换一个地点。');$('result-title').textContent='选择这顿的门店';document.querySelector('.results-area').scrollIntoView({behavior:'smooth',block:'start'});}catch(err){feedback(err.message,true);}finally{busy(false);}};
-function renderSummary(){$('selection-summary').hidden=false;$('selection-summary').innerHTML=`<div><strong>${icon('location')} ${esc(state.store.name)}</strong><small>一人份 · 到店自取 · 预算 ¥${esc($('budget').value)}${$('sugar-free').checked?' · 明确无糖饮品':''}</small></div><div class="summary-actions"><button id="adjust-conditions" class="conditions-toggle">调整条件</button><button id="change-store">换门店 ↗</button></div>`;$('adjust-conditions').onclick=()=>{compactConditions(false);document.querySelector('.controls').scrollIntoView({behavior:'smooth',block:'start'});$('budget').focus({preventScroll:true});};$('change-store').onclick=()=>{clearPlans();$('store-section').hidden=false;renderStores();progress(2);};}
+$('search-form').onsubmit=async e=>{e.preventDefault();resetStores();retryAction=()=>$('search-form').requestSubmit();busy(true,'正在查询附近门店…');$('empty-state').hidden=true;$('store-section').hidden=false;$('stores').innerHTML=Array.from({length:3},()=>'<div class="store-skeleton result-skeleton" aria-hidden="true"></div>').join('');try{const d=await api('stores',input());state.stores=d.stores;renderStores();$('store-section').hidden=false;progress(2);feedback(d.stores.length?'请先选择一家门店。':'当前没有返回可用门店，请换一个地点。');$('result-title').textContent='选择这顿的门店';scrollTo(document.querySelector('.results-area'));}catch(err){$('stores').innerHTML='';feedback(err.message,true);}finally{busy(false);}};
+function renderSummary(){$('selection-summary').hidden=false;$('selection-summary').innerHTML=`<div><strong>${icon('location')} ${esc(state.store.name)}</strong><small>一人份 · 到店自取 · 预算 ¥${esc($('budget').value)}${$('sugar-free').checked?' · 明确无糖饮品':''}</small></div><div class="summary-actions"><button id="adjust-conditions" class="conditions-toggle">调整条件</button><button id="change-store">换门店 ↗</button></div>`;$('adjust-conditions').onclick=()=>{compactConditions(false);scrollTo(document.querySelector('.controls'));$('budget').focus({preventScroll:true});};$('change-store').onclick=()=>{clearPlans();$('store-section').hidden=false;renderStores();progress(2);};}
 function selectedItems(p){return p.detail.rounds.map(r=>{const code=p.changes?.[String(r.id)]||p.roundList.find(x=>x.round===String(r.id))?.comboItemList[0]?.code;return r.choices.find(x=>String(x.code)===String(code))?.name||'选配未确认';});}
 function budgetMarkup(p){
  const b=budgetView(p.priceFen,Math.round(Number($('budget').value)*100),p.dirty);
@@ -47,28 +66,74 @@ function budgetMarkup(p){
 function evidenceMarkup(p){return p.dirty?'<p class="pending">当前搭配尚未核算；上一份报价不能作为依据。</p>':`<p>${esc(p.evidence)}</p><p>核算时间：${esc(new Date(p.observedAt).toLocaleString('zh-CN'))}</p><p>餐品插画仅为示意。菜单记录不保证实时可售；本工具未下单。</p>`;}
 function renderComparison(){
  const c=comparePlans(state.plans,Math.round(Number($('budget').value)*100));
- const box=$('plan-comparison');box.hidden=c.kind==='unavailable';box.classList.toggle('pending-comparison',c.kind==='pending');
- if(c.kind==='pending')box.innerHTML='<span class="compare-symbol">↻</span><div><strong>搭配正在调整</strong><p>重新核算后，再比较两套方案的金额。</p></div>';
- if(c.kind==='same')box.innerHTML='<span class="compare-symbol">＝</span><div><strong>两套金额相同，按口味选</strong><p>这里比较的是当前两套方案，不代表全店最低价。</p></div>';
- if(c.kind==='different')box.innerHTML=`<span class="compare-symbol">¥</span><div><strong>方案 ${c.cheaperIndex===0?'A':'B'} 比另一套少花 <em>¥${money(c.differenceFen)}</em></strong><p>基于两套实时核价 · 你可以按主食和饮料偏好选择</p></div>`;
+ const verifiedOver=c.kind==='unavailable'&&state.plans.length===2&&state.plans.every(p=>!p.dirty&&Number.isSafeInteger(p.priceFen)&&p.priceFen>=0);const box=$('plan-comparison');box.hidden=c.kind==='unavailable'&&!verifiedOver;box.classList.toggle('pending-comparison',c.kind==='pending');
+ if(c.kind==='pending')box.innerHTML=`<div class="comparison-heading">${icon('refresh')}<div><strong>搭配正在调整</strong><p>重新核算后，再比较两套方案的金额。</p></div></div>`;
+ if(c.kind==='same'||c.kind==='different'||verifiedOver){
+  const title=verifiedOver?'有搭配超出预算，调整后再选':c.kind==='same'?'两套同价，按口味选':`方案 ${c.cheaperIndex===0?'A':'B'} 比另一套少花 ¥${money(c.differenceFen)}`;
+  box.innerHTML=`<div class="comparison-heading">${icon('compare')}<div><strong>${title}</strong><p>同一门店 · 两种搭配 · 当前核价</p></div></div>${priceChart(state.plans.map((p,i)=>({label:`方案 ${i===0?'A':'B'}`,priceFen:p.priceFen,dirty:p.dirty})),Math.round(Number($('budget').value)*100),'两套搭配，价格一眼比')} `;
+ }
 }
+function renderChosen(){
+ const i=state.plans.findIndex(p=>p.id===state.chosen),p=state.plans[i];
+ $('chosen-plan').hidden=!p;if(!p)return;
+ $('chosen-plan').innerHTML=`<div>${icon('check')}<span><small>我的选择 · 方案 ${i===0?'A':'B'}</small><strong>${esc(p.name)}</strong></span></div><strong>${p.dirty?'待核算':`¥${money(p.priceFen)}`}</strong><button id="copy-chosen" ${p.dirty||!p.withinBudget?'disabled':''}>${p.dirty?'先重新核算':'复制这套'}</button>`;
+ $('copy-chosen').onclick=()=>copyPlan(i);
+}
+function choosePlan(i){
+ const p=state.plans[i];state.chosen=p.id;
+ document.querySelectorAll('[data-choose]').forEach(b=>{const chosen=Number(b.dataset.choose)===i;b.setAttribute('aria-pressed',String(chosen));b.innerHTML=chosen?`${icon('check')}已选这套`:'选这套';b.closest('.plan-card').classList.toggle('is-chosen',chosen);});
+ $('compare-plan').value=String(i);$('store-compare-result').textContent='';renderChosen();
+ window.dispatchEvent(new CustomEvent('mcd-toast',{detail:`已选方案 ${i===0?'A':'B'}，可以继续调整搭配。`}));
+}
+async function copyPlan(i){
+ const p=state.plans[i];if(state.busy||p.dirty||!p.withinBudget)return;
+ const text=`【实时核价，未下单】\n${state.store.name}\n${p.name}\n${p.items.join(' + ')}\n¥${money(p.priceFen)}\n核算时间：${new Date(p.observedAt).toLocaleString('zh-CN')}\n${p.evidence}`;
+ try{await navigator.clipboard.writeText(text);window.dispatchEvent(new CustomEvent('mcd-toast',{detail:'方案已复制，包含选配和核算时间。'}));}
+ catch{retryAction=null;feedback('浏览器暂不支持复制，请手动选择餐品内容。',true);}
+}
+function markChoice(i,round,code){
+ const p=state.plans[i];if(String(selectedChoice(p,round)?.code)===String(code))return false;
+ p.changes={...(p.changes||{}),[String(round.id)]:String(code)};p.dirty=true;
+ renderPlans();feedback('搭配已修改，请重新核算；旧价格已隐藏。');return true;
+}
+function openRound(i,id){
+ if(state.busy)return;
+ const p=state.plans[i],round=p.detail.rounds.find(r=>String(r.id)===id),options=roundChoices(round,$('sugar-free').checked);
+ editorContext={i,round,code:String(selectedChoice(p,round)?.code)};
+ $('meal-editor-title').textContent=round.name||'调整这一项';$('meal-editor-context').textContent=`方案 ${i===0?'A':'B'} · ${p.name}`;
+ $('meal-editor-hint').textContent=options.length>1?'点选你想换的餐品，再确认核算。图示仅供辨认。':'这是套餐里的固定搭配，当前接口没有其他可选项。';
+ $('meal-editor-options').innerHTML=`<legend class="sr-only">${esc(round.name)}</legend>${options.map(x=>`<label class="meal-option"><input type="radio" name="meal-choice" value="${esc(x.code)}" ${String(x.code)===editorContext.code?'checked':''}>${foodArt(x.name)}<strong>${esc(x.name)}</strong><span class="option-tick" aria-hidden="true">${icon('check')}</span></label>`).join('')}`;
+ $('apply-meal-choice').textContent=options.length>1?'确认搭配并核算':'保留这项';
+ $('meal-editor').showModal();document.body.classList.add('dialog-open');
+}
+$('apply-meal-choice').onclick=()=>{
+ const context=editorContext,checked=$('meal-editor-options').querySelector('input:checked');if(!context||!checked)return;
+ $('meal-editor').close();const changed=markChoice(context.i,context.round,checked.value);
+ if(changed)recalc(context.i);else window.dispatchEvent(new CustomEvent('mcd-toast',{detail:'保持当前搭配，无需重复核算。'}));
+};
 function renderPlans(){
  $('plans').innerHTML=`<div class="plan-grid">${state.plans.map((p,i)=>{
- const dirty=p.dirty===true;const fields=p.detail.rounds.filter(r=>r.choices.length>1).map(r=>{
- const selected=p.changes?.[String(r.id)]||p.roundList.find(x=>x.round===String(r.id))?.comboItemList[0]?.code;
- const options=r.choices.filter(x=>!$('sugar-free').checked||!/饮料|饮品/.test(r.name)||/无糖|零糖|zero sugar|sugar free/i.test(x.name));
- return `<div class="round-field"><label for="option-${i}-${esc(r.id)}">${esc(r.name)}</label><select id="option-${i}-${esc(r.id)}" data-plan="${i}" data-round="${esc(r.id)}">${options.map(x=>`<option value="${esc(x.code)}" ${String(x.code)===selected?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`;
+ const dirty=p.dirty===true,chosen=state.chosen===p.id;
+ const fields=p.detail.rounds.filter(r=>roundChoices(r,$('sugar-free').checked).length>1).map(r=>{
+ const selected=selectedChoice(p,r),options=roundChoices(r,$('sugar-free').checked);
+ return `<div class="round-field"><label for="option-${i}-${esc(r.id)}">${esc(r.name)}</label><select id="option-${i}-${esc(r.id)}" data-plan="${i}" data-round="${esc(r.id)}">${options.map(x=>`<option value="${esc(x.code)}" ${String(x.code)===String(selected?.code)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`;
  }).join('');
- return `<article class="plan-card ${dirty?'is-pending':''}"><div class="plan-cover"><span class="plan-tag">实时核价 · ${i===0?'选择 A':'选择 B'}</span><img src="/meal.svg" alt="餐品示意插画，非实际商品照片"></div><div class="plan-body"><h3>${esc(p.name)}</h3><p class="food-list">${selectedItems(p).map(esc).join(' ＋ ')}</p><div class="price-line"><strong class="${dirty?'pending':''}">${dirty?'待核算':`<small>¥</small>${money(p.priceFen)}`}</strong><span>${dirty?'选配已修改':'按选配提交核算'}</span></div><div class="budget-state">${budgetMarkup(p)}</div>${fields}<div class="plan-actions"><button class="recalc" data-recalc="${i}">${icon('refresh')}重新核算</button><button data-copy="${i}" ${dirty||!p.withinBudget?'disabled':''}>复制方案</button></div><details><summary>查看核算依据</summary><div class="calculation-evidence">${evidenceMarkup(p)}</div></details></div></article>`;
+ const tray=p.detail.rounds.map(r=>{const selected=selectedChoice(p,r),count=roundChoices(r,$('sugar-free').checked).length;return `<button class="meal-component" data-edit-plan="${i}" data-edit-round="${esc(r.id)}" aria-label="${esc(r.name)}：${esc(selected?.name)}，${count>1?'点击换搭配':'查看固定搭配'}"><span class="component-round">${esc(r.name||'套餐子项')}</span>${foodArt(selected?.name)}<strong>${esc(selected?.name||'选配未确认')}</strong><span class="component-action">${count>1?'换一换':'固定搭配'} ${icon(count>1?'arrow':'check')}</span></button>`;}).join('');
+ return `<article class="plan-card ${dirty?'is-pending':''} ${chosen?'is-chosen':''}" aria-label="方案 ${i===0?'A':'B'}：${esc(p.name)}"><div class="meal-plan-heading"><span class="plan-letter">${i===0?'A':'B'}</span><div><small>当前门店 · 实时核价</small><h3>${esc(p.name)}</h3></div><button data-choose="${i}" aria-pressed="${chosen}">${chosen?`${icon('check')}已选这套`:'选这套'}</button></div><div class="plan-body"><p class="tray-hint">${icon('meal')} 点击餐品换搭配 <span>原创示意插画</span></p><div class="meal-tray">${tray}</div><p class="food-list sr-only">${selectedItems(p).map(esc).join(' ＋ ')}</p><div class="price-line"><strong class="${dirty?'pending':''}">${dirty?'待核算':`<small>¥</small>${money(p.priceFen)}`}</strong><span>${dirty?'新搭配还没有报价':'整套价格 · 按选配提交核算'}</span></div><div class="budget-state">${budgetMarkup(p)}</div>${fields?`<details class="all-rounds"><summary>展开全部选配</summary>${fields}</details>`:''}<div class="plan-actions"><button class="recalc" data-recalc="${i}">${icon('refresh')}${dirty?'核算新搭配':'更新价格'}</button><button data-copy="${i}" ${dirty||!p.withinBudget?'disabled':''}>复制方案</button></div><details><summary>查看核算依据</summary><div class="calculation-evidence">${evidenceMarkup(p)}</div></details></div></article>`;
  }).join('')}</div>`;
- renderComparison();renderStoreComparison();
- document.querySelectorAll('[data-round]').forEach(s=>s.onchange=()=>{const p=state.plans[Number(s.dataset.plan)];p.changes={...(p.changes||{}),[s.dataset.round]:s.value};p.dirty=true;const card=s.closest('.plan-card');card.classList.add('is-pending');card.querySelector('.food-list').textContent=selectedItems(p).join(' ＋ ');card.querySelector('.price-line strong').textContent='待核算';card.querySelector('.price-line strong').classList.add('pending');card.querySelector('.price-line>span').textContent='选配已修改';card.querySelector('.budget-state').innerHTML=budgetMarkup(p);card.querySelector('.calculation-evidence').innerHTML=evidenceMarkup(p);card.querySelector('[data-copy]').disabled=true;$('store-compare-result').textContent='选配已变化，请重新核算后再比价。';renderComparison();renderStoreComparison();});
+ renderComparison();renderStoreComparison();renderChosen();
+ document.querySelectorAll('[data-round]').forEach(s=>s.onchange=()=>{
+  const i=Number(s.dataset.plan),round=state.plans[i].detail.rounds.find(r=>String(r.id)===s.dataset.round);
+  const id=s.id;markChoice(i,round,s.value);const replacement=$(id);if(replacement){replacement.closest('details').open=true;replacement.focus({preventScroll:true});}
+ });
+ document.querySelectorAll('[data-edit-round]').forEach(b=>b.onclick=()=>openRound(Number(b.dataset.editPlan),b.dataset.editRound));
+ document.querySelectorAll('[data-choose]').forEach(b=>b.onclick=()=>choosePlan(Number(b.dataset.choose)));
  document.querySelectorAll('[data-recalc]').forEach(b=>b.onclick=()=>recalc(Number(b.dataset.recalc)));
- document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const p=state.plans[Number(b.dataset.copy)];if(p.dirty||!p.withinBudget)return;const text=`【实时核价，未下单】\n${state.store.name}\n${p.name}\n${p.items.join(' + ')}\n¥${money(p.priceFen)}\n${p.evidence}`;try{await navigator.clipboard.writeText(text);feedback('方案已复制。');window.dispatchEvent(new CustomEvent('mcd-toast',{detail:'方案已复制，可以发给朋友。'}));}catch{feedback('浏览器暂不支持复制，请手动选择餐品内容。',true);}});
+ document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyPlan(Number(b.dataset.copy)));
 }
 function renderEvidence(){const r=state.result;$('evidence').hidden=false;$('evidence').innerHTML=`<p><strong>本次检查：${r.checked} 个候选完成实时算价${r.failed?`，${r.failed} 个未能确认`:''}。</strong></p><p>${r.couponCount===null?'券数据结构未确认':`查询返回 ${r.couponCount} 张券`} · 本版暂不自动应用优惠券</p><p>${esc(r.scope)}</p>`;}
-$('recommend').onclick=async()=>{if(!state.store)return;clearPlans();busy(true,'正在查询菜单与选配，并核算候选方案…');try{const r=await api('recommend',input());state.result=r;state.plans=r.plans;$('store-section').hidden=true;$('empty-state').hidden=true;renderSummary();progress(3);$('result-title').textContent='为这顿，选个合适的';if(r.plans.length){renderPlans();compactConditions(true);if(window.matchMedia('(max-width:640px)').matches)document.querySelector('.results-area').scrollIntoView({behavior:'smooth',block:'start'});feedback(`查询完成，修改选配后可以重新核算。`);}else{$('plans').innerHTML=`<div class="no-solution"><h3>这次检查，没找到预算内方案。</h3><p>${r.closest?`已核算候选中，较低金额为 ¥${money(r.closest.priceFen)}，超过你的预算。`:'候选缺少符合条件的选配或未能成功核算。'}</p><p>不代表全店无解。你可以调整预算或餐品偏好，再试一次。</p>${r.closest?'<button id="raise-budget" class="primary">按这个金额调整预算 →</button>':''}</div>`;if(r.closest)$('raise-budget').onclick=()=>{$('budget').value=money(r.closest.priceFen);budgetUI();clearPlans();$('store-section').hidden=false;renderStores();feedback('预算已更新，请重新生成。');};feedback('没有凑出不符合要求的推荐。');}renderEvidence();}catch(e){feedback(e.message,true);}finally{busy(false);}};
-async function recalc(i){const old=state.plans[i];busy(true,'选配已更新，正在重新核算…');old.dirty=true;try{const changes=Object.fromEntries(old.roundList.map(r=>[r.round,r.comboItemList[0].code]));Object.assign(changes,old.changes||{});const d=await api('recalculate',{...input(),code:old.id,changes});state.plans[i]={...d.plan,name:old.name};renderPlans();feedback(d.plan.withinBudget?'重新核算完成。':'新选配超过预算，已标明，不能作为预算内方案。');}catch(e){renderPlans();feedback(`重新核算失败：${e.message}。原价格不能用于新选配。`,true);}finally{busy(false);}}
+$('recommend').onclick=async()=>{if(!state.store||!$('search-form').reportValidity())return;clearPlans();retryAction=()=>$('recommend').click();$('empty-state').hidden=true;$('plans').innerHTML='<div class="plan-grid result-skeleton" aria-hidden="true"><div class="plan-skeleton"></div><div class="plan-skeleton"></div></div>';busy(true,'正在查询菜单与选配，并核算候选方案…');try{const r=await api('recommend',input());state.result=r;state.plans=r.plans;$('store-section').hidden=true;$('empty-state').hidden=true;renderSummary();progress(3);$('result-title').textContent='为这顿，选个合适的';if(r.plans.length){renderPlans();compactConditions(true);if(window.matchMedia('(max-width:640px)').matches)scrollTo(document.querySelector('.results-area'));$('result-title').focus({preventScroll:true});feedback(`查询完成，点击餐品可以换搭配。`);}else{$('plans').innerHTML=`<div class="no-solution"><h3>这次检查，没找到预算内方案。</h3><p>${r.closest?`已核算候选中，较低金额为 ¥${money(r.closest.priceFen)}，超过你的预算。`:'候选缺少符合条件的选配或未能成功核算。'}</p><p>不代表全店无解。你可以调整预算或餐品偏好，再试一次。</p>${r.closest?'<button id="raise-budget" class="primary">按这个金额调整预算 →</button>':''}</div>`;if(r.closest)$('raise-budget').onclick=()=>{$('budget').value=money(r.closest.priceFen);budgetUI();clearPlans();$('store-section').hidden=false;renderStores();feedback('预算已更新，请重新生成。');};feedback('没有凑出不符合要求的推荐。');}renderEvidence();}catch(e){$('plans').innerHTML='';feedback(e.message,true);}finally{busy(false);}};
+async function recalc(i){const old=state.plans[i];retryAction=()=>recalc(i);old.dirty=true;renderPlans();busy(true,'选配已更新，正在重新核算…');try{const changes=Object.fromEntries(old.roundList.map(r=>[r.round,r.comboItemList[0].code]));Object.assign(changes,old.changes||{});const d=await api('recalculate',{...input(),code:old.id,changes});state.plans[i]={...d.plan,name:old.name};renderPlans();feedback(d.plan.withinBudget?'重新核算完成。':'新选配超过预算，已标明，不能作为预算内方案。');}catch(e){renderPlans();feedback(`重新核算失败：${e.message}。原价格不能用于新选配。`,true);}finally{busy(false);document.querySelector(`[data-recalc="${i}"]`)?.focus({preventScroll:true});}}
 function renderStoreComparison(){
  const other=state.stores.filter(s=>s.code!==state.store?.code);$('store-comparison').hidden=!state.plans.length||!other.length;
  const selected=$('compare-plan').value;$('compare-plan').innerHTML=state.plans.map((p,i)=>`<option value="${i}" ${selected===String(i)?'selected':''}>方案 ${i===0?'A':'B'} · ${esc(p.name)}${p.dirty?'（待核算）':''}</option>`).join('');
@@ -79,9 +144,9 @@ $('compare-plan').onchange=()=>{$('store-compare-result').textContent='';};$('co
 $('compare-prices').onclick=async()=>{
  const p=state.plans[Number($('compare-plan').value)],other=state.stores.find(s=>s.code===$('compare-store').value);
  if(!p||!other)return;if(p.dirty){$('store-compare-result').textContent='先重新核算这套选配，再做同款比价。';return;}
- busy(true);$('store-compare-result').textContent='正在分别核算两家门店的同款搭配…';
- try{const r=await api('compare',{...input(),otherStoreCode:other.code,code:p.id,roundList:p.roundList});$('store-compare-result').innerHTML=`<div class="store-price-grid"><div><small>${esc(state.store.name)}</small><strong>¥${money(r.first.priceFen)}</strong></div><div><small>${esc(other.name)}</small><strong>¥${money(r.second.priceFen)}</strong></div></div><p>${r.cheaper==='same'?'这两家当前核算金额相同。':`${esc(r.cheaper==='first'?state.store.name:other.name)} 少 ¥${money(r.differenceFen)}。`}</p><p class="micro">${esc(r.evidence)}</p>`;}
- catch(e){$('store-compare-result').textContent=`无法确认同款比价：${e.message}`;}finally{busy(false);}
+ retryAction=()=>$('compare-prices').click();busy(true,'正在核算两家门店的同款搭配…');$('store-compare-result').textContent='正在分别核算两家门店的同款搭配…';
+ try{const r=await api('compare',{...input(),otherStoreCode:other.code,code:p.id,roundList:p.roundList});$('store-compare-result').innerHTML=`<div class="store-price-grid"><div><small>${esc(state.store.name)}</small><strong>¥${money(r.first.priceFen)}</strong></div><div><small>${esc(other.name)}</small><strong>¥${money(r.second.priceFen)}</strong></div></div><p>${r.cheaper==='same'?'这两家当前核算金额相同。':`${esc(r.cheaper==='first'?state.store.name:other.name)} 少 ¥${money(r.differenceFen)}。`}</p>${priceChart([{label:"当前门店",priceFen:r.first.priceFen},{label:"对比门店",priceFen:r.second.priceFen}],Math.round(Number($('budget').value)*100),"同款搭配，两店核价")}<p class="micro">${esc(r.evidence)}</p>`;}
+ catch(e){$('store-compare-result').textContent=`无法确认同款比价：${e.message}`;feedback('本次比价没有取得有效结果，可以重试。',true);}finally{busy(false);}
 };
 
 let toastTimer;
@@ -99,4 +164,5 @@ const sectionObserver=new IntersectionObserver(entries=>{for(const entry of entr
 checkConnection();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!state.busy)checkConnection();});
 setInterval(()=>{if(!document.hidden&&!state.busy)checkConnection();},20000);
-budgetUI();
+try{const saved=JSON.parse(localStorage.getItem('mcd-meal-preferences'));if(saved&&Number(saved.budget)>=1&&Number(saved.budget)<=1000)$('budget').value=saved.budget;if(['any','burger','chicken'].includes(saved?.preference))$('preference').value=saved.preference;if(typeof saved?.sugarFree==='boolean')$('sugar-free').checked=saved.sugarFree;}catch{}
+budgetUI();progress(1);

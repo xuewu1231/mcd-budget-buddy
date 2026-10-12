@@ -64,3 +64,69 @@ const iconPaths = {
   "zoom": "<path d=\"M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7\"/>"
 };
 export function icon(name){return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||iconPaths.sparkle}</svg>`;}
+
+export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function roundChoices(round, strict) {
+  return (round.choices || []).filter(x => !strict || !/饮料|饮品/.test(round.name || '') || (/无糖|零糖|zero sugar|sugar free/i.test(x.name || '') && !/非无糖/.test(x.name || '')));
+}
+export function selectedChoice(plan, round) {
+  const code = plan.changes?.[String(round.id)] || plan.roundList.find(x => x.round === String(round.id))?.comboItemList[0]?.code;
+  return round.choices.find(x => String(x.code) === String(code));
+}
+
+// Illustrations classify names for display only, never for dietary eligibility.
+export function foodKind(name = '') {
+  if (/薯条|薯饼/.test(name)) return 'fries';
+  if (/玉米/.test(name)) return 'corn';
+  if (/咖啡|美式|红茶|牛奶|饮料|可乐|雪碧|果汁/.test(name)) return 'drink';
+  if (/堡/.test(name)) return 'burger';
+  if (/鸡|翅/.test(name)) return 'chicken';
+  return 'meal';
+}
+export function foodArt(name) {
+  const kind = foodKind(name);
+  const art = {
+    burger:'<g class="food-bun"><path d="M22 43Q28 14 60 14T98 43Z" fill="#f3bd59"/><path d="m42 29 4-2m12-6 4 2m14 8 4-2" stroke="#fff4ca" stroke-width="3"/></g><path d="m23 49 12-5 12 5 12-5 12 5 12-5 14 5v7H23Z" fill="#84a954"/><rect x="22" y="56" width="76" height="14" rx="6" fill="#65402e"/><path d="m26 57 60-1-17 12-12-7-13 9Z" fill="#ffce35"/><path d="M23 75h74q-2 15-18 15H41Q25 90 23 75Z" fill="#e6a74a"/>',
+    fries:'<g fill="#ffcd52"><rect x="27" y="18" width="10" height="51" rx="2"/><rect x="41" y="11" width="10" height="61" rx="2"/><rect x="55" y="20" width="10" height="48" rx="2"/><rect x="69" y="13" width="10" height="56" rx="2"/><rect x="83" y="25" width="9" height="42" rx="2"/></g><path d="M22 47q38 15 76 0L88 92H32Z" fill="#db0007"/><path d="M45 76q15 10 30 0" fill="none" stroke="#ffdc6a" stroke-width="4"/>',
+    drink:'<path d="M71 9h12v6H76l-7 29" fill="none" stroke="#db0007" stroke-width="4"/><path d="M30 34h60l-8 61H38Z" fill="#fffdf3"/><ellipse cx="60" cy="34" rx="31" ry="7" fill="#fff7d7"/><path d="m34 52 53-3-4 29-46 3Z" fill="#db0007"/><path d="M49 65h22" stroke="#fff8dd" stroke-width="4"/>',
+    chicken:'<g fill="#e6a445"><path d="M24 39q-3-13 13-13t18 15q2 17-15 21T24 39Z"/><path d="M65 35q3-14 17-10t15 19q-2 14-18 13T65 35Z"/><path d="M45 64q5-17 21-10t13 22q-5 15-21 11T45 64Z"/></g><g stroke="#c18431" stroke-width="2"><path d="m33 41 4 4m40-9 4 3m-20 34 3 3"/></g>',
+    corn:'<path d="M26 43h68l-8 48H34Z" fill="#db0007"/><ellipse cx="60" cy="43" rx="34" ry="13" fill="#ffce45"/><g fill="#ffe377" stroke="#dfa826" stroke-width="1"><ellipse cx="44" cy="40" rx="6" ry="4"/><ellipse cx="61" cy="37" rx="6" ry="4"/><ellipse cx="76" cy="41" rx="6" ry="4"/><ellipse cx="53" cy="48" rx="6" ry="4"/><ellipse cx="68" cy="47" rx="6" ry="4"/></g>',
+    meal:'<path d="M24 70h72v7q0 15-20 15H44q-20 0-20-15Z" fill="#ffbc0d"/><path d="M28 62q0-32 32-32t32 32H28Z" fill="#f5c66c"/><path d="M60 20v7M43 19l4 6M77 19l-4 6" stroke="#db0007" stroke-width="3"/>'
+  };
+  const size = kind === 'drink' && /大杯/.test(name || '') ? 'translate(-6 -5) scale(1.1)' : kind === 'drink' && /小杯/.test(name || '') ? 'translate(6 10) scale(.9)' : '';
+  return `<svg class="food-art food-${kind}" viewBox="0 0 120 110" aria-hidden="true"><ellipse cx="60" cy="97" rx="44" ry="6" fill="#00000009"/><g transform="${size}" stroke="#4b3827" stroke-width="1.5" stroke-linejoin="round">${art[kind]}</g></svg>`;
+}
+
+export function priceChart(rows, budgetFen, label = '核算总价对比') {
+  if (!rows.length || rows.some(r => r.dirty || !Number.isSafeInteger(r.priceFen) || r.priceFen < 0) || !Number.isSafeInteger(budgetFen) || budgetFen <= 0) return '';
+  const max = Math.max(budgetFen, ...rows.map(r => r.priceFen));
+  const scale = n => Math.round(n / max * 480);
+  const height = rows.length * 82 + 42;
+  const budgetX = 20 + scale(budgetFen);
+  const summary = rows.map(r => `${r.label} ${(r.priceFen / 100).toFixed(2)}元`).join('，');
+  return `<figure class="price-chart"><figcaption><strong>${escapeHTML(label)}</strong><span>总价 · 元</span></figcaption><svg viewBox="0 0 540 ${height}" role="img" aria-label="${escapeHTML(summary)}，预算${(budgetFen / 100).toFixed(2)}元"><line class="chart-budget" x1="${budgetX}" x2="${budgetX}" y1="18" y2="${height - 25}"/>${rows.map((r,i) => `<g><text x="20" y="${25 + i*82}" class="chart-name">${escapeHTML(r.label)}</text><rect class="chart-track" x="20" y="${38+i*82}" width="480" height="22" rx="11"/><rect class="chart-bar ${i ? 'alternate' : ''}" x="20" y="${38+i*82}" width="${scale(r.priceFen)}" height="22" rx="11"/><text x="510" y="${27+i*82}" text-anchor="end" class="chart-amount">¥${(r.priceFen/100).toFixed(2)}</text></g>`).join('')}<text x="20" y="${height-4}" class="chart-axis">0</text><text x="510" y="${height-4}" text-anchor="end" class="chart-axis">预算 ¥${(budgetFen/100).toFixed(2)} · 虚线</text></svg><p>从 0 起比较实际核价；预算余量不代表优惠。套餐子项未单独报价，不拆分金额。</p></figure>`;
+}
+
+export function enhanceMedia(root) {
+  root.querySelectorAll('img[data-media]').forEach(img => {
+    const frame = img.parentElement;
+    frame.classList.add('media-loading');
+    const caption = document.createElement('span');
+    caption.className = 'media-caption'; caption.textContent = '海报加载中'; caption.setAttribute('aria-hidden','true');
+    frame.append(caption);
+    const originalLabel = frame.getAttribute('aria-label');
+    const ready = () => {frame.classList.remove('media-loading','media-error');frame.classList.add('media-ready');caption.remove();if(originalLabel)frame.setAttribute('aria-label',originalLabel);};
+    const failed = () => {
+      frame.classList.remove('media-loading','media-ready');frame.classList.add('media-error');caption.textContent = '海报暂未加载 · 原文仍可查看';
+      if(originalLabel)frame.setAttribute('aria-label',`${originalLabel}，海报未加载，可查看原文`);
+      else {caption.removeAttribute('aria-hidden');caption.setAttribute('role','status');}
+      if(frame.tagName !== 'BUTTON' && !frame.querySelector('.media-retry')) {
+        const retry = document.createElement('button');retry.type='button';retry.className='media-retry';retry.textContent='重试图片';
+        retry.onclick=()=>{retry.remove();frame.classList.remove('media-error');frame.classList.add('media-loading');caption.textContent='海报加载中';img.src=img.src;};
+        frame.append(retry);
+      }
+    };
+    img.addEventListener('load',ready);img.addEventListener('error',failed);
+    if(img.complete)img.naturalWidth ? ready() : failed();
+  });
+}
