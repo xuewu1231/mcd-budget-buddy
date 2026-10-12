@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-12",
+  "method": "HTTP live discovery plus in-app browser DOM checks",
+  "mode": "live",
+  "observedAt": "2026-10-12T09:10:38.064Z",
+  "calendarDays": 13,
+  "events": 26,
+  "claimableCoupons": 7,
+  "browserChecks": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "activityImagesLoaded": 6,
+    "localFavoriteFilter": true,
+    "detailDialog": true,
+    "consoleErrorsObserved": 0
+  },
+  "storeComparison": {
+    "source": "Observed in browser; current query only",
+    "meal": "大堡口福三件套",
+    "items": [
+      "Hold不住鸡排堡（椒盐风味）",
+      "中薯条",
+      "无糖可口可乐中杯"
+    ],
+    "stores": [
+      {
+        "name": "麦当劳北京四道口餐厅",
+        "priceFen": 2290
+      },
+      {
+        "name": "麦当劳北京罗庄中路(西部食府)餐厅",
+        "priceFen": 2290
+      }
+    ],
+    "differenceFen": 0,
+    "selectionEchoed": false,
+    "orderCreated": false
+  },
+  "limits": [
+    "Activity promotion prices are not store quotes",
+    "Claimable coupons were not claimed or applied",
+    "No official subscriptions or notification service were created"
+  ]
+}

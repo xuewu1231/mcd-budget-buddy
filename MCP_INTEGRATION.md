@@ -25,3 +25,9 @@ Node.js 服务使用官方 MCP SDK，配置 MCD_MCP_TOKEN 后从固定官方地�
 真实推荐以当前菜单显示元金额排序，尝试最多8个套餐，读取详情后按严格饮料条件组配，再向 calculate-price 提交 roundList。实际价格按整数分检查预算。本版仅查券不自动使用券，不承诺最低价；已完成真实门店、套餐核价和饮料调整后重算联调，见 examples/web-live-2026-10-12.json。
 
 网页演示通过合成数据运行，同样使用计划与预算校验，界面始终显示演示标记。演示模式不会发起官方接口调用。
+
+## 活动日历与同款比价（0.3.0）
+
+新增只读 `campaign-calendar` 和 `available-coupons`，均按实时 schema 校验。日历读取前查询 `now-time-info`，归一化 dailyList/events；活动只保留公开内容，不将订阅信息、couponId/couponCode 或原始响应透传。结构化时段以 couponInfo 为准；price=0 占位不生成免费报价。可领券不等于已拥有或门店可用券；本版不自动领取或应用。
+
+`/api/compare` 要求两个不同门店与一份完整 roundList，两次 `calculate-price` 独立核算。商品与选配不同、其中一店失败时不输出价差。真实活动图片仅允许已确认的公开 HTTPS CDN，拒绝签名 URL 和任意远程地址。

@@ -1,7 +1,20 @@
 {
-  "version": "0.2.0",
-  "allowedTools": ["query-nearby-stores", "query-meals", "query-meal-detail", "query-store-coupons", "calculate-price", "now-time-info", "list-nutrition-foods"],
-  "pickup": {"beType": 1, "orderType": 1},
+  "version": "0.3.0",
+  "allowedTools": [
+    "query-nearby-stores",
+    "query-meals",
+    "query-meal-detail",
+    "query-store-coupons",
+    "calculate-price",
+    "now-time-info",
+    "list-nutrition-foods",
+    "campaign-calendar",
+    "available-coupons"
+  ],
+  "pickup": {
+    "beType": 1,
+    "orderType": 1
+  },
   "maxCandidates": 8,
   "maxResults": 2,
   "strictSugarFreePattern": "无糖|零糖|zero sugar|sugar free",
