@@ -2,6 +2,8 @@
 import json
 import sys
 from decimal import Decimal
+from pathlib import Path
+POLICY = json.loads((Path(__file__).resolve().parents[1] / "shared/policy.json").read_text())
 
 
 def validate(plan):
@@ -10,7 +12,7 @@ def validate(plan):
     if req.get('method') != 'tools/call' or req.get('params', {}).get('name') != 'calculate-price':
         errors.append('请求必须是 calculate-price')
     args = req.get('params', {}).get('arguments', {})
-    if args.get('beType') != 1 or args.get('orderType') != 1:
+    if args.get('beType') != POLICY['pickup']['beType'] or args.get('orderType') != POLICY['pickup']['orderType']:
         errors.append('第一版只支持到店自取')
     items = args.get('items', [])
     declared = plan.get('selections', [])

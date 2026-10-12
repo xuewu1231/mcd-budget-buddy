@@ -10,3 +10,6 @@ __pycache__/
 node_modules/
 private/
 local/
+
+releases/
+coverage/

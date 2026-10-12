@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#183e36"><title>麦麦预算助手 · 每一餐，刚刚好</title><link rel="icon" href="/icon.svg"><link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/styles.css"></head>
+<body>
+<header class="nav"><a class="brand" href="/" aria-label="麦麦预算助手首页"><span class="brand-mark">m<span>·</span></span><span>麦麦预算助手<small>McD Budget Buddy</small></span></a><div class="nav-right"><span class="version">EXPERIMENT 02</span><button id="connection" class="nav-button">连接设置 ↗</button></div></header>
+<main>
+<section class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> 少纠结一点，好好吃一餐</div><h1>今天这顿，<br>预算内<span class="underline">刚刚好。</span></h1><p>选一家附近的麦当劳，告诉我你的预算和口味。<br class="desktop">我们把搭配、选配和算价，一起理清楚。</p><div class="hero-tags"><span>↗ 到店自取</span><span>◎ 明确价格依据</span><span>✦ WorkBuddy Skill</span></div></div><div class="hero-art"><img src="/meal.svg" alt="汉堡、薯条和饮料的原创插画"><div class="art-label">GOOD FOOD.<br>BETTER CHOICES.</div><div class="art-stamp">先看方案<br>再做决定</div></div></section>
+<section class="workspace" aria-label="点餐工作台">
+<aside class="controls"><div class="panel-heading"><span class="eyebrow">01 / YOUR PICK</span><h2>这顿想怎么吃？</h2></div>
+<div class="mode-control" role="group" aria-label="数据模式"><button id="demo-mode" class="active" aria-pressed="true">演示体验</button><button id="live-mode" aria-pressed="false">真实查询</button></div><p id="mode-note" class="small-note">演示数据 · 不代表当前供应或价格</p>
+<form id="search-form"><label for="brief">一句话说说需求 <span>可选</span></label><div class="brief-row"><input id="brief" placeholder="比如：30元，想吃汉堡，饮料无糖"><button type="button" id="parse-brief" aria-label="提取需求">↵</button></div><p class="micro">支持提取金额、汉堡／麦乐鸡、无糖关键词；提取后请核对。</p>
+<div class="location-row"><div><label for="city">城市</label><input id="city" value="北京" required maxlength="30"></div><div><label for="location">附近地点</label><input id="location" value="大钟寺" required maxlength="100"></div></div>
+<label for="budget">每餐预算 <output id="budget-caption">¥30</output></label><div class="budget-row"><span>¥</span><input id="budget" type="number" value="30" min="1" max="1000" step="0.01" required aria-label="每餐预算，元"><span>一人份</span></div><div class="budget-presets"><button type="button" data-budget="20">20元</button><button type="button" data-budget="30" class="selected">30元</button><button type="button" data-budget="40">40元</button><button type="button" data-budget="10">试试10元</button></div>
+<label for="preference">这次想吃</label><select id="preference"><option value="any">都可以，给我不同选择</option><option value="burger">汉堡 / 鸡排堡</option><option value="chicken">麦乐鸡 / 鸡块</option></select>
+<label class="switch-line" for="sugar-free"><span><strong>饮料只要明确无糖</strong><small>不把“无添加糖”直接当作无糖</small></span><input id="sugar-free" type="checkbox" checked></label>
+<button class="primary full" id="find-stores" type="submit">查找附近门店 <span>→</span></button></form>
+<div class="skill-note"><span class="skill-icon">✦</span><div><strong>也可以在 WorkBuddy 里用</strong><p>同一套点餐方法，保留独立 Skill 入口。</p><button id="download-skill">查看 / 下载 Skill ↗</button></div></div></aside>
+<div class="results-area"><div class="result-heading"><div><span class="eyebrow">02 / FIND YOUR MEAL</span><h2 id="result-title">选好门店，开始搭配</h2></div><span class="pill" id="data-badge">演示模式</span></div>
+<ol class="steps" aria-label="任务进度"><li id="step-1" class="active"><span>1</span>说需求</li><li id="step-2"><span>2</span>选门店</li><li id="step-3"><span>3</span>比方案</li></ol>
+<div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+<div id="store-section" hidden><div class="section-line"><h3>附近门店</h3><span>点击选择 · 到店自取</span></div><div id="stores" class="store-list"></div><button id="recommend" class="primary" disabled>生成我的方案 →</button></div>
+<div id="selection-summary" class="selection-summary" hidden></div>
+<div id="plans"></div>
+<div id="empty-state" class="empty-state"><div class="empty-orbit"><span>＋</span><i>¥</i></div><h3>把“随便吃点”变成具体选择。</h3><p>从左边填好预算，选一家门店。<br>我们会给出最多两套方案，供你比较。</p><div class="empty-features"><span>01 查菜单</span><span>02 定选配</span><span>03 看算价</span></div></div>
+<div id="evidence" class="evidence" hidden></div></div></section>
+<section class="how-it-works"><div><span class="eyebrow">A LITTLE LESS GUESSWORK</span><h2>把依据留住，<br>把选择交给你。</h2></div><div class="how-grid"><article><span>01</span><h3>真实数据有出处</h3><p>真实模式连接麦当劳 MCP；演示模式有清楚标记。</p></article><article><span>02</span><h3>改搭配，就重算</h3><p>价格对应具体选配，修改后先进入待核算状态。</p></article><article><span>03</span><h3>没找到，也说清楚</h3><p>解释检查范围和未知信息，不为了推荐而凑方案。</p></article></div></section>
+</main><footer><span>麦麦预算助手 · 独立参赛作品，非官方产品</span><a href="https://github.com/xuewu1231/mcd-budget-buddy" target="_blank" rel="noopener">源代码 ↗</a><span>仅查询与算价 · 不下单</span></footer>
+<dialog id="settings"><form method="dialog"><div class="dialog-title"><h2>连接与体验</h2><button aria-label="关闭连接设置">×</button></div><p>演示模式无需账号。真实模式使用运行这台服务的电脑上配置的麦当劳 MCP Token。</p><div id="connection-status" class="connection-status"></div><h3>真实模式配置</h3><p>在项目根目录创建 <code>.env</code>，设置 <code>MCD_MCP_TOKEN</code> 后重启。Token 留在本地后端，不在网页输入或公开。</p><p class="small-note">本版仅监听电脑本地地址。手机界面已适配；真机查询需另行配置受控访问，手机不能直接访问电脑的 localhost。</p><a href="https://open.mcd.cn/mcp" target="_blank" rel="noopener">麦当劳 MCP 控制台 ↗</a><button class="primary full">我知道了</button></form></dialog>
+<script type="module" src="/app.js"></script></body></html>

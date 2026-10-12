@@ -1,0 +1,110 @@
+{
+  "source": "本项目 Node 后端在本地使用用户既有 MCP 配置执行只读查询和算价；未执行订单或账户修改",
+  "date": "2026-10-12",
+  "storeCode": "1950169",
+  "recommend": {
+    "name": "原味板烧鸡腿麦满分套餐",
+    "items": [
+      "原味板烧鸡腿麦满分",
+      "脆薯饼",
+      "无糖可口可乐大杯"
+    ],
+    "request": {
+      "storeCode": "1950169",
+      "orderType": 1,
+      "beType": 1,
+      "items": [
+        {
+          "productCode": "9900003457",
+          "quantity": 1,
+          "roundList": [
+            {
+              "round": "1",
+              "comboItemList": [
+                {
+                  "code": "6800",
+                  "quantity": 1
+                }
+              ]
+            },
+            {
+              "round": "2",
+              "comboItemList": [
+                {
+                  "code": "4825",
+                  "quantity": 1
+                }
+              ]
+            },
+            {
+              "round": "3",
+              "comboItemList": [
+                {
+                  "code": "3111",
+                  "quantity": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "priceFen": 2300,
+    "observedAt": "2026-10-12T02:26:35.503Z"
+  },
+  "recalculate": {
+    "name": "原味板烧鸡腿麦满分套餐",
+    "items": [
+      "原味板烧鸡腿麦满分",
+      "脆薯饼",
+      "无糖可口可乐中杯"
+    ],
+    "request": {
+      "storeCode": "1950169",
+      "orderType": 1,
+      "beType": 1,
+      "items": [
+        {
+          "productCode": "9900003457",
+          "quantity": 1,
+          "roundList": [
+            {
+              "round": "1",
+              "comboItemList": [
+                {
+                  "code": "6800",
+                  "quantity": 1
+                }
+              ]
+            },
+            {
+              "round": "2",
+              "comboItemList": [
+                {
+                  "code": "4825",
+                  "quantity": 1
+                }
+              ]
+            },
+            {
+              "round": "3",
+              "comboItemList": [
+                {
+                  "code": "3071",
+                  "quantity": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "priceFen": 2100,
+    "observedAt": "2026-10-12T02:28:27.002Z"
+  },
+  "limitations": [
+    "只保存脱敏摘要，不包含认证头",
+    "价格响应未回显选配，不能确认最终订单内容",
+    "只核算部分套餐，不代表全店最优或实时可售保证"
+  ]
+}
