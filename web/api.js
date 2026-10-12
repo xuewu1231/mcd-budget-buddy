@@ -36,3 +36,10 @@ export function comparePlans(plans, budgetFen) {
   if (!differenceFen) return {kind: 'same'};
   return {kind: 'different', cheaperIndex: plans[0].priceFen < plans[1].priceFen ? 0 : 1, differenceFen};
 }
+
+// Category chips filter text only; they do not establish offer eligibility.
+export function activityMatches(event, category = 'all', query = '') {
+  const text = `${event.title || ''} ${event.content || ''}`.normalize('NFKC').toLowerCase();
+  const patterns = {breakfast:/早餐|早八|早班|厚松饼/, new:/上新|新品|焕新/, collab:/联名|联动|peaceminusone|g-dragon/};
+  return (category === 'all' || Boolean(patterns[category]?.test(text))) && text.includes(String(query).normalize('NFKC').trim().toLowerCase());
+}

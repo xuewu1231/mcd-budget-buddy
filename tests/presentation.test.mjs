@@ -24,3 +24,7 @@ test('未知价格与无效预算不产生图表或比较结论', () => {
   assert.equal(comparePlans([{priceFen:2440}],3000).kind,'unavailable');
   assert.equal(comparePlans([{priceFen:2440,dirty:true}],3000).kind,'unavailable');
 });
+
+import {activityMatches} from '../web/api.js';
+test('活动搜索支持宣传中的特殊数字字形与大小写',()=>{assert.equal(activityMatches({title:'超值𝟗.𝟗元早餐',content:''},'breakfast','9.9'),true);assert.equal(activityMatches({title:'McD X PEACEMINUSONE'},'collab','peaceminusone'),true);});
+test('分类与搜索取交集，不把名字分类当作优惠规则',()=>{const e={title:'新品鸡腿堡',content:'联名上新'};assert.equal(activityMatches(e,'new','鸡腿'),true);assert.equal(activityMatches(e,'breakfast','鸡腿'),false);assert.equal(activityMatches(e,'collab','薯条'),false);assert.equal(activityMatches(e,'unknown',''),false);});

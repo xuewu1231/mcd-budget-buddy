@@ -1,42 +1,76 @@
-import {requestJSON} from './api.js';
+import {requestJSON,activityMatches} from './api.js';
 import {timeHint} from './discovery.js';
-const $=id=>document.getElementById(id),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let mode='demo',data=null,selectedDate='',revision=0,visibleLimit=6;
-const favorites=()=>{try{return JSON.parse(localStorage.getItem('mcd-activity-favorites')||'[]');}catch{return [];}};
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let mode='demo',data=null,selectedDate='',revision=0,visibleLimit=6,category='all',openedActivity=null;
+const toast=text=>window.dispatchEvent(new CustomEvent('mcd-toast',{detail:text}));
+function favorites(){try{const list=JSON.parse(localStorage.getItem('mcd-activity-favorites')||'[]');return Array.isArray(list)?list.filter(x=>typeof x==='string').slice(-100):[];}catch{return [];}}
 function message(text,error=false){$('radar-status').textContent=text;$('radar-status').classList.toggle('error',error);}
+function clock(){const m=Number($('radar-time').value);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
+function eventsForDay(){return data?.days.find(d=>d.date===selectedDate)?.events||[];}
+function updateTime(){
+ const time=clock();$('radar-time-caption').textContent=time;$('time-explorer-caption').textContent=time;$('radar-time').setAttribute('aria-valuetext',time);
+ document.querySelectorAll('[data-time-preset]').forEach(b=>{const selected=Number(b.dataset.timePreset)===Number($('radar-time').value);b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
+ document.querySelectorAll('[data-hint]').forEach(p=>{const e=eventsForDay().find(e=>e.id===p.dataset.hint);if(!e)return;const hint=timeHint(e,selectedDate,time);p.textContent=`◷ ${hint.text}`;p.closest('.activity-card').classList.toggle('match',hint.kind==='match');});
+}
 async function load(){
- const rev=++revision;$('refresh-radar').disabled=true;message('正在翻开活动日历…');
+ const rev=++revision,firstLoad=data===null;$('refresh-radar').disabled=true;$('radar-retry').hidden=true;$('activity-cards').setAttribute('aria-busy','true');message('正在翻开活动日历…');
+ if(firstLoad)$('activity-cards').innerHTML=Array.from({length:3},()=>'<div class="activity-skeleton" aria-hidden="true"><div></div><span></span><span></span></div>').join('');
  try{
   const result=await requestJSON('/api/discover',{body:{mode},timeoutMs:60000});if(rev!==revision)return;
-  data=result;selectedDate=data.serverDate;visibleLimit=6;$('radar-date').value=selectedDate;$('radar-time').value=Number(data.serverTime.slice(0,2))*60+Number(data.serverTime.slice(3));
-  $('radar-data-source').textContent=mode==='demo'?'演示活动':'麦当劳 MCP · 实时查询';
+  data=result;selectedDate=selectedDate||data.serverDate;visibleLimit=6;$('radar-date').value=selectedDate;
+  if(firstLoad)$('radar-time').value=Number(data.serverTime.slice(0,2))*60+Number(data.serverTime.slice(3));
+  $('radar-data-source').textContent=mode==='demo'?'演示活动':'实时活动';$('radar-data-source').classList.toggle('live',mode==='live');
   $('radar-stamp').textContent=`${mode==='demo'?'演示查询':'查询'}时间 ${new Date(data.observedAt).toLocaleString('zh-CN')}`;
-  $('radar-mode-switch').textContent=mode==='demo'?'看真实活动 ↗':'切换演示';render();renderCoupons();message(`${mode==='demo'?'演示日历':'活动日历'}已更新。宣传信息需以门店与券规则核验。`);
- }catch(e){if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';message(`活动查询失败：${e.message}`,true);}}
- finally{if(rev===revision)$('refresh-radar').disabled=false;}
+  $('radar-mode-switch').textContent=mode==='demo'?'看真实活动 ↗':'切换演示';render();renderCoupons();message(mode==='demo'?'先体验一下，切换真实查询后可以看官方活动。':'活动已更新，选个日期看看。');
+ }catch(e){if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';$('activity-results-caption').textContent='活动暂时未加载';$('radar-retry').hidden=false;message(`活动查询失败：${e.message}`,true);}}
+ finally{if(rev===revision){$('refresh-radar').disabled=false;$('activity-cards').setAttribute('aria-busy','false');}}
 }
-function clock(){const m=Number($('radar-time').value);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
+function openActivity(e){
+ openedActivity=e;$('activity-dialog-title').textContent=e.title;$('activity-dialog-content').textContent=e.content||'接口未提供更多详情。';
+ $('activity-dialog-hint').textContent=`${mode==='demo'?'演示信息':'官方活动日历'} · ${e.date}。宣传价不是门店最终报价。`;
+ $('activity-dialog-image').hidden=!e.image;$('activity-dialog-image').innerHTML=e.image?`<img src="${esc(e.image)}" alt="${esc(e.title)}活动海报" referrerpolicy="no-referrer">`:'';
+ $('activity-dialog').showModal();document.body.classList.add('dialog-open');
+}
 function render(){
  if(!data)return;
- const time=clock();$('radar-time-caption').textContent=time;
+ const focus=document.activeElement,focusedDay=focus?.dataset?.day,focusedFavorite=focus?.dataset?.favorite;
+ const scroll=$('radar-days').scrollLeft;
  $('radar-days').innerHTML=data.days.map(d=>`<button class="day-chip ${d.date===selectedDate?'selected':''}" data-day="${esc(d.date)}" aria-pressed="${d.date===selectedDate}"><span>${d.date===data.serverDate?'今天':new Date(d.date+'T00:00:00Z').toLocaleDateString('zh-CN',{weekday:'short',timeZone:'UTC'})}</span><strong>${d.date.slice(5).replace('-',' / ')}</strong><small>${d.events.length} 条活动</small></button>`).join('');
+ $('radar-days').scrollLeft=scroll;
  document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.day;visibleLimit=6;$('radar-date').value=selectedDate;render();});
- const events=data.days.find(d=>d.date===selectedDate)?.events||[],saved=favorites(),onlySaved=$('only-saved').checked;
- const visible=events.filter(e=>!onlySaved||saved.includes(e.title));
+ const events=eventsForDay(),saved=favorites(),onlySaved=$('only-saved').checked,query=$('activity-search').value;
+ const visible=events.filter(e=>(!onlySaved||saved.includes(e.title))&&activityMatches(e,category,query));
+ $('clear-activity-search').hidden=!query;$('reset-activity-filters').hidden=category==='all'&&!query&&!onlySaved;
+ $('activity-results-caption').textContent=`${selectedDate.slice(5).replace('-','月')}日 · ${visible.length} 条${onlySaved?'收藏':'活动'}${visible.length<events.length?` / 当天 ${events.length} 条`:''}`;
+ document.querySelectorAll('[data-category]').forEach(b=>{const selected=b.dataset.category===category;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
  $('activity-cards').innerHTML=visible.length?visible.slice(0,visibleLimit).map(e=>{
-  const hint=timeHint(e,selectedDate,time),isSaved=saved.includes(e.title),times=[...new Set(e.content.match(/\b\d{1,2}:\d{2}\b/g)||[])];
+  const hint=timeHint(e,selectedDate,clock()),isSaved=saved.includes(e.title),times=[...new Set(e.content.match(/\b\d{1,2}:\d{2}\b/g)||[])];
   const kind=e.type===2?'券活动':e.type===3?'品鉴会':e.type===6?'派对':'活动资讯';
-  return `<article class="activity-card ${hint.kind}">${e.image?`<div class="activity-image"><img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"></div>`:'<div class="activity-image illustrated"><span aria-hidden="true">✦</span><p>今天的小期待</p></div>'}<div class="activity-body"><div class="activity-meta"><span>${mode==='demo'?'演示 · ':''}${kind}</span><button data-favorite="${esc(e.id)}" aria-pressed="${isSaved}" aria-label="${isSaved?'取消':'添加'}本地收藏：${esc(e.title)}">${isSaved?'★':'☆'}</button></div><h3>${esc(e.title)}</h3><p class="activity-timing">◷ ${esc(hint.text)}</p>${times.length?`<p class="article-time-hint">原文提到 ${times.map(esc).join(' / ')}，具体日期请看详情</p>`:''}<p class="activity-excerpt">${esc(e.content.slice(0,80))}${e.content.length>80?'…':''}</p><button class="activity-detail" data-activity="${esc(e.id)}">看看活动详情 ↗</button></div></article>`;
- }).join(''):`<div class="radar-empty">${onlySaved?'这一天还没有本地收藏。':'接口返回的日历没有这一天的活动记录。'}<small>不代表当天没有优惠，可以换个日期看看。</small></div>`;
- if(visible.length>visibleLimit){const button=document.createElement('button');button.className='more-activities';button.textContent=`再看 ${visible.length-visibleLimit} 条活动 ↓`;button.onclick=()=>{visibleLimit+=6;render();};$('activity-cards').append(button);}
- document.querySelectorAll('[data-favorite]').forEach(b=>b.onclick=()=>{const e=events.find(e=>e.id===b.dataset.favorite);let list=favorites();list=list.includes(e.title)?list.filter(x=>x!==e.title):[...list,e.title];try{localStorage.setItem('mcd-activity-favorites',JSON.stringify(list.slice(-100)));render();message('本地收藏已更新，仅保存在这台浏览器；不会订阅官方活动或发送提醒。');}catch{message('浏览器无法保存收藏。',true);}});
- document.querySelectorAll('[data-activity]').forEach(b=>b.onclick=()=>{const e=events.find(e=>e.id===b.dataset.activity);$('activity-dialog-title').textContent=e.title;$('activity-dialog-content').textContent=e.content||'接口未提供更多详情。';$('activity-dialog-hint').textContent=`${mode==='demo'?'演示信息':'来源：campaign-calendar'} · 日历日期 ${e.date}。活动文案的价格不是门店最终报价。`;$('activity-dialog').showModal();});
- document.querySelectorAll('.activity-image img').forEach(img=>img.onerror=()=>{img.remove();});
+  return `<article class="activity-card ${hint.kind}">${e.image?`<button class="activity-image poster-button" data-poster="${esc(e.id)}" aria-label="查看海报：${esc(e.title)}"><img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="poster-zoom" aria-hidden="true">↗ 放大海报</span></button>`:'<div class="activity-image illustrated"><span aria-hidden="true">✦</span><p>今天的小期待</p></div>'}<div class="activity-body"><div class="activity-meta"><span>${mode==='demo'?'演示 · ':''}${kind}</span><button data-favorite="${esc(e.id)}" aria-pressed="${isSaved}" aria-label="${isSaved?'取消':'添加'}本地收藏：${esc(e.title)}">${isSaved?'★':'☆'}</button></div><h3>${esc(e.title)}</h3><p class="activity-timing" data-hint="${esc(e.id)}">◷ ${esc(hint.text)}</p>${times.length?`<p class="article-time-hint">原文提到 ${times.map(esc).join(' / ')}，日期见详情</p>`:''}<p class="activity-excerpt">${esc(e.content.slice(0,64))}${e.content.length>64?'…':''}</p><button class="activity-detail" data-activity="${esc(e.id)}">看看详情 <span aria-hidden="true">↗</span></button></div></article>`;
+ }).join(''):`<div class="radar-empty"><span aria-hidden="true">⌕</span><strong>${events.length?'暂时没找到符合筛选的活动':'这一天没有返回活动记录'}</strong><small>${events.length?'试试其他关键词，或者清除筛选。':'可以换个日期看看；没有记录不代表当天没有优惠。'}</small></div>`;
+ if(visible.length>visibleLimit){const button=document.createElement('button');button.className='more-activities';button.textContent=`再看 ${Math.min(6,visible.length-visibleLimit)} 条活动 ↓`;button.onclick=()=>{const previousLimit=visibleLimit;visibleLimit+=6;render();document.querySelectorAll('[data-activity]')[previousLimit]?.focus({preventScroll:true});};$('activity-cards').append(button);}
+ document.querySelectorAll('[data-favorite]').forEach(b=>b.onclick=()=>{
+  const e=events.find(e=>e.id===b.dataset.favorite);let list=favorites();const remove=list.includes(e.title);list=remove?list.filter(x=>x!==e.title):[...list,e.title];
+  try{localStorage.setItem('mcd-activity-favorites',JSON.stringify(list.slice(-100)));render();toast(remove?'已取消本地收藏':'已收藏在这台浏览器，下次可以继续看。');}catch{toast('浏览器无法保存收藏。');}
+ });
+ document.querySelectorAll('[data-activity],[data-poster]').forEach(b=>b.onclick=()=>openActivity(events.find(e=>e.id===(b.dataset.activity||b.dataset.poster))));
+ document.querySelectorAll('.activity-image img').forEach(img=>img.onerror=()=>{img.hidden=true;const label=img.parentElement.querySelector('.poster-zoom');if(label)label.textContent='海报暂未加载 · 查看详情 ↗';});
+ if(focusedDay)document.querySelector(`[data-day="${focusedDay}"]`)?.focus({preventScroll:true});
+ if(focusedFavorite){const target=[...document.querySelectorAll('[data-favorite]')].find(b=>b.dataset.favorite===focusedFavorite);(target||$('only-saved')).focus({preventScroll:true});}
+ updateTime();
 }
 function renderCoupons(){
  $('claimable-coupons').innerHTML=data.coupons===null?`<p class="error">${esc(data.couponError)}</p>`:data.coupons.length?data.coupons.map(c=>`<div class="coupon-ticket"><span aria-hidden="true">✂</span><div><strong>${esc(c.name)}</strong><small>${esc(c.label)} · 未领取，未核验门店适用性</small></div></div>`).join(''):'<p class="small-note">本次接口没有返回可领取的券。</p>';
 }
-$('radar-mode-switch').onclick=()=>$(mode==='demo'?'live-mode':'demo-mode').click();$('refresh-radar').onclick=load;$('radar-date').onchange=()=>{selectedDate=$('radar-date').value;visibleLimit=6;if(selectedDate)render();};$('radar-time').oninput=render;$('only-saved').onchange=render;
-window.addEventListener('mcd-mode',e=>{mode=e.detail;data=null;$('radar-mode-switch').textContent=mode==='demo'?'看真实活动 ↗':'切换演示';$('radar-data-source').textContent=mode==='demo'?'演示活动 · 待更新':'真实活动 · 待查询';$('radar-stamp').textContent='尚未取得本模式活动数据';$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';load();});
+$('activity-to-plan').onclick=()=>{if(!openedActivity)return;$('activity-dialog').close();window.dispatchEvent(new CustomEvent('mcd-activity-pick',{detail:{title:openedActivity.title}}));};
+$('radar-mode-switch').onclick=()=>$(mode==='demo'?'live-mode':'demo-mode').click();$('refresh-radar').onclick=load;$('radar-retry').onclick=load;
+$('radar-date').onchange=()=>{selectedDate=$('radar-date').value;visibleLimit=6;if(selectedDate)render();};$('radar-time').oninput=updateTime;$('only-saved').onchange=()=>{visibleLimit=6;render();};
+$('activity-search').oninput=()=>{visibleLimit=6;render();};
+$('clear-activity-search').onclick=()=>{$('activity-search').value='';visibleLimit=6;render();$('activity-search').focus();};
+$('reset-activity-filters').onclick=()=>{category='all';$('activity-search').value='';$('only-saved').checked=false;visibleLimit=6;render();};
+ document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;visibleLimit=6;render();});
+ document.querySelectorAll('[data-time-preset]').forEach(b=>b.onclick=()=>{$('radar-time').value=b.dataset.timePreset;updateTime();});
+window.addEventListener('mcd-mode',e=>{mode=e.detail;data=null;selectedDate='';$('radar-mode-switch').textContent=mode==='demo'?'看真实活动 ↗':'切换演示';$('radar-data-source').textContent=mode==='demo'?'演示活动 · 待更新':'真实活动 · 待查询';$('radar-stamp').textContent='尚未取得本模式活动数据';$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';load();});
 const burger=$('burger-play');burger.onclick=()=>{burger.classList.remove('burger-pop');void burger.offsetWidth;burger.classList.add('burger-pop');$('burger-caption').textContent=['少点纠结，多点薯条。','好吃的搭配，从你的预算开始。','活动看清楚，再决定吃什么。'][Math.floor(Math.random()*3)];};
 load();
