@@ -1,9 +1,19 @@
 {
   "name": "mcd-budget-buddy",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=22"},
-  "scripts": {"start": "node --env-file-if-exists=.env server/start.mjs", "test": "node --test tests/*.test.mjs", "skill:pack": "python3 scripts/package_skill.py"},
-  "dependencies": {"@modelcontextprotocol/sdk": "^1.28.0", "ajv": "^8.17.1"}
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node scripts/start-local.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "skill:pack": "python3 scripts/package_skill.py",
+    "start:workbuddy": "node scripts/start-local.mjs --workbuddy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "ajv": "^8.17.1"
+  }
 }

@@ -1,4 +1,5 @@
 import {connect} from './mcp.mjs';
+import {ServiceError} from './errors.mjs';
 import {requirements, menuEntries, mainMatches, makeSelection, selectionNames, verifyPlan, policy} from '../shared/domain.mjs';
 const storeScope=storeCode=>({storeCode,orderType:1,beType:1});
 export async function findStores(token,city,keyword) {
@@ -17,7 +18,7 @@ export async function recommend(token, storeCode,input){
  try {
  const [menu,coupons]=await Promise.all([m.call('query-meals',storeScope(storeCode)),m.call('query-store-coupons',storeScope(storeCode))]);
  const candidates=menuEntries(menu).filter(x=>/套餐|件套/.test(x.name)).sort((a,b)=>Number(a.displayPrice)-Number(b.displayPrice)).slice(0,policy.maxCandidates);
- const plans=[],failures=[];
+ const plans=[],failures=[];let apiFailures=0;
  for(const e of candidates){try{
   const detail=await m.call('query-meal-detail',{...storeScope(storeCode),code:e.code});
   const roundList=makeSelection(detail,constraints.sugarFree);
@@ -26,7 +27,8 @@ export async function recommend(token, storeCode,input){
   verifyPlan(args,detail,constraints);
   const price=await m.call('calculate-price',args);
   plans.push(planRecord(e,detail,roundList,price,storeCode,constraints));
- }catch{failures.push(e.name);}}
+ }catch(error){if(error instanceof ServiceError)apiFailures++;failures.push(e.name);}}
+ if(!plans.length&&apiFailures)throw new ServiceError('套餐查询或核价接口失败，暂时无法确认推荐结果。请稍后重试，不代表预算内无方案。','MCP_CANDIDATES_FAILED');
  plans.sort((a,b)=>a.priceFen-b.priceFen);
  const within=plans.filter(p=>p.withinBudget).slice(0,policy.maxResults);
  return {plans:within,closest:within.length?null:plans[0]||null,checked:plans.length,attempted:candidates.length,failed:failures.length,couponCount:Array.isArray(coupons)?coupons.length:null,couponApplied:false,observedAt:new Date().toISOString(),scope:'本版检查最多8个套餐候选；不穷举单品组合。优惠券仅查询，暂不自动应用，核算金额以无券请求为准。'};

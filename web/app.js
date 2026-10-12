@@ -1,9 +1,22 @@
+import {requestJSON} from './api.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(n/100).toFixed(2);
 const state={mode:'demo',stores:[],store:null,plans:[],result:null,busy:false,liveReady:false,revision:0};
 const controls=['city','location','budget','preference','sugar-free','brief','parse-brief','demo-mode','live-mode','find-stores','recommend'];
-async function api(route,body){const r=await fetch(`/api/${route}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.error||'请求失败');return d;}
+async function api(route,body){
+ try {const data=await requestJSON(`/api/${route}`,{body,timeoutMs:route==='recommend'?240000:route==='parse'?8000:60000});serviceState(true);return data;}
+ catch(e){if(e.code==='OFFLINE')serviceState(false);throw e;}
+}
+function serviceState(online){state.serviceOnline=online;$('service-banner').hidden=online;$('connection').textContent=online?'连接设置 ↗':'服务离线 · 查看';if(!online){state.liveReady=false;$('connection-status').textContent='无法连接本地服务，请先启动项目，再重新检查。';}}
+async function checkConnection(){
+ $('reconnect').disabled=true;$('check-connection').disabled=true;
+ try{const d=await requestJSON('/api/status',{timeoutMs:5000});if(d.app!=='mcd-budget-buddy')throw new Error('此地址不是麦麦预算助手，请检查启动命令。');serviceState(true);state.liveReady=d.liveReady;$('connection-status').textContent=d.liveReady?`本地服务已连接 · ${d.authSource==='workbuddy'?'已读取 WorkBuddy 配置':'Token 已配置'}；实际接口将在查询时验证。`:'本地服务正常，演示可用；真实查询尚未配置。';if($('feedback').textContent.includes('无法连接本地点餐服务'))feedback('本地连接已恢复，可以重新查询。');}
+ catch(e){serviceState(false);$('connection-status').textContent=e.message;}
+ finally{$('reconnect').disabled=false;$('check-connection').disabled=false;}
+}
+$('reconnect').onclick=checkConnection;$('check-connection').onclick=checkConnection;
+
 function input(){return {mode:state.mode,city:$('city').value,keyword:$('location').value,budget:$('budget').value,preference:$('preference').value,sugarFree:$('sugar-free').checked,storeCode:state.store?.code};}
 function feedback(text,error=false){$('feedback').hidden=!text;$('feedback').textContent=text;$('feedback').classList.toggle('error',error);}
 function busy(value,text=''){state.busy=value;controls.forEach(id=>$(id).disabled=value);document.querySelectorAll('[data-budget],.store,.plan-card button,.plan-card select').forEach(e=>e.disabled=value);$('recommend').disabled=value||!state.store;if($('change-store'))$('change-store').disabled=value;if(!value)document.querySelectorAll('[data-copy]').forEach(b=>{const p=state.plans[Number(b.dataset.copy)];b.disabled=Boolean(p?.dirty||!p?.withinBudget);});if(text)feedback(text);}
@@ -14,7 +27,7 @@ function budgetUI(){$('budget-caption').textContent=`¥${$('budget').value}`;doc
 function mode(value){if(state.busy)return;state.mode=value;resetStores();feedback('');$('demo-mode').classList.toggle('active',value==='demo');$('live-mode').classList.toggle('active',value==='live');$('demo-mode').setAttribute('aria-pressed',value==='demo');$('live-mode').setAttribute('aria-pressed',value==='live');$('data-badge').textContent=value==='demo'?'演示模式':'真实查询';$('data-badge').classList.toggle('live',value==='live');$('mode-note').textContent=value==='demo'?'演示数据 · 不代表当前供应或价格':'使用本地后端的麦当劳账户查询；尚未下单';if(value==='live'&&!state.liveReady){feedback('真实模式尚未配置。点击“连接设置”查看本地配置方法。',true);}}
 $('demo-mode').onclick=()=>mode('demo');$('live-mode').onclick=()=>mode('live');
 $('connection').onclick=()=>{$('settings').showModal();};
-$('download-skill').onclick=async()=>{try{const r=await fetch('/api/skill');if(!r.ok)throw new Error('Skill 读取失败');const blob=new Blob([await r.text()],{type:'text/markdown;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='SKILL.md';a.click();URL.revokeObjectURL(u);feedback('已下载 Skill 入口文件。完整使用请从源代码仓库下载项目，保留 shared 和 scripts。');}catch(e){feedback(e.message,true);}};
+$('download-skill').onclick=async()=>{try{let r;try{r=await fetch('/api/skill');}catch{serviceState(false);throw new Error('服务离线，启动本地点餐服务后再下载 Skill。');}if(!r.ok)throw new Error('Skill 读取失败');const blob=new Blob([await r.text()],{type:'text/markdown;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='SKILL.md';a.click();URL.revokeObjectURL(u);feedback('已下载 Skill 入口文件。完整使用请从源代码仓库下载项目，保留 shared 和 scripts。');}catch(e){feedback(e.message,true);}};
 document.querySelectorAll('[data-budget]').forEach(b=>b.onclick=()=>{$('budget').value=b.dataset.budget;budgetUI();clearPlans();feedback('预算已更新，请重新生成方案。');});
 ['budget','preference','sugar-free'].forEach(id=>$(id).addEventListener('change',()=>{budgetUI();clearPlans();progress(state.store?2:1);feedback('条件已更新，请重新生成方案。');}));
 ['city','location'].forEach(id=>$(id).addEventListener('change',()=>{resetStores();feedback('地点已更新，请重新查询门店。');}));
@@ -39,5 +52,7 @@ function renderPlans(){
 function renderEvidence(){const r=state.result;$('evidence').hidden=false;$('evidence').innerHTML=`<p><strong>${state.mode==='demo'?'演示体验':'本次检查'}：${r.checked} 个候选完成${state.mode==='demo'?'模拟':'接口'}算价${r.failed?`，${r.failed} 个未能确认`:''}。</strong></p><p>${r.couponCount===null?'券数据结构未确认':`查询返回 ${r.couponCount} 张券`} · 本版暂不自动应用优惠券</p><p>${esc(r.scope)}</p>`;}
 $('recommend').onclick=async()=>{if(!state.store)return;clearPlans();busy(true,'正在查询菜单与选配，并核算候选方案…');try{const r=await api('recommend',input());state.result=r;state.plans=r.plans;$('store-section').hidden=true;$('empty-state').hidden=true;renderSummary();progress(3);$('result-title').textContent='为这顿，选个合适的';if(r.plans.length){renderPlans();feedback(`${state.mode==='demo'?'演示':'查询'}完成，修改选配后可以重新核算。`);}else{$('plans').innerHTML=`<div class="no-solution"><h3>这次检查，没找到预算内方案。</h3><p>${r.closest?`已核算候选中，较低金额为 ¥${money(r.closest.priceFen)}，超过你的预算。`:'候选缺少符合条件的选配或未能成功核算。'}</p><p>不代表全店无解。你可以调整预算或餐品偏好，再试一次。</p>${r.closest?'<button id="raise-budget" class="primary">按这个金额调整预算 →</button>':''}</div>`;if(r.closest)$('raise-budget').onclick=()=>{$('budget').value=money(r.closest.priceFen);budgetUI();clearPlans();$('store-section').hidden=false;renderStores();feedback('预算已更新，请重新生成。');};feedback('没有凑出不符合要求的推荐。');}renderEvidence();}catch(e){feedback(e.message,true);}finally{busy(false);}};
 async function recalc(i){const old=state.plans[i];busy(true,'选配已更新，正在重新核算…');old.dirty=true;try{const changes=Object.fromEntries(old.roundList.map(r=>[r.round,r.comboItemList[0].code]));Object.assign(changes,old.changes||{});const d=await api('recalculate',{...input(),code:old.id,changes});state.plans[i]={...d.plan,name:old.name};renderPlans();feedback(d.plan.withinBudget?'重新核算完成。':'新选配超过预算，已标明，不能作为预算内方案。');}catch(e){renderPlans();feedback(`重新核算失败：${e.message}。原价格不能用于新选配。`,true);}finally{busy(false);}}
-fetch('/api/status').then(r=>r.json()).then(d=>{state.liveReady=d.liveReady;$('connection-status').textContent=d.liveReady?'本地 Token 已配置；实际连接状态将在真实查询时验证。':'演示模式可用 · 真实连接尚未配置';}).catch(()=>{$('connection-status').textContent='后端状态无法读取，请确认本地服务仍在运行。';});
+checkConnection();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!state.busy)checkConnection();});
+setInterval(()=>{if(!document.hidden&&!state.busy)checkConnection();},20000);
 budgetUI();

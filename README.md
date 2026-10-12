@@ -10,8 +10,10 @@
 
 ```bash
 npm ci
-npm start
+npm run start:workbuddy
 ```
+
+以后可双击项目里的 **启动麦麦助手.command**。保持启动终端运行；重复启动会提示已有服务，不会再占用同一端口。
 
 打开 http://127.0.0.1:4310 。默认演示模式，无需账号，使用明确标注的合成数据。演示金额不代表实时价格，插画不代表实际商品照片。
 
@@ -21,7 +23,7 @@ npm start
 2. 复制 `.env.example` 为 `.env`，在本地填写 `MCD_MCP_TOKEN`。
 3. 重启 `npm start`，在页面选择“真实查询”。
 
-如果你已经在这台 Mac 的 WorkBuddy 中配置 mcd-mcp，也可运行 `USE_WORKBUDDY_MCP=1 npm start`；程序只读取该配置里的认证信息，仍不保存 Token。
+如果你已经在这台 Mac 的 WorkBuddy 中配置 mcd-mcp，也可运行 `npm run start:workbuddy`；程序只读取该配置里的认证信息，仍不保存 Token。
 
 Token 只在后端内存使用，不通过网页填写，不返回到浏览器。不要提交 .env、真实配置或认证日志。默认仅监听电脑本地地址；已验证390px手机布局，但手机真机不能直接访问电脑的localhost。受控远程访问另行配置。
 
@@ -71,3 +73,9 @@ python3 scripts/check_plan.py examples/plan.json
 [参考项目](docs/REFERENCES.md) · [产品范围](docs/PRODUCT.md) · [MCP 集成](MCP_INTEGRATION.md) · [赛事规则](https://github.com/M-China/mcd-developer-innovation-challenge/blob/main/activityGuidelines.md)
 
 本项目为独立开发的参赛作品，不代表麦当劳或腾讯官方产品。引用的官方参赛声明和第三方依赖适用其自身条款；原创实现使用 MIT 许可。
+
+## 连接故障处理
+
+页面报服务离线时，先启动项目，再点击“重新连接”。页面会定期检查本地服务是否仍在运行。无 Token、麦当劳认证错误、业务失败和请求超时分别提示；不会把接口失败描述成预算内无方案。
+
+这仍是本地应用，关闭启动终端或重启电脑后，需要再次启动。网页缓存本身不能提供后端能力。
