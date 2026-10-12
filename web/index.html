@@ -4,9 +4,9 @@
 <header class="nav"><a class="brand" href="/" aria-label="麦麦预算助手首页"><span class="brand-mark">m<span>·</span></span><span>麦麦预算助手<small>McD Budget Buddy</small></span></a><div class="nav-right"><span class="version">EXPERIMENT 02</span><button id="connection" class="nav-button">连接设置 ↗</button></div></header>
 <main>
 <section class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> 少纠结一点，好好吃一餐</div><h1>今天这顿，<br>预算内<span class="underline">刚刚好。</span></h1><p>选一家附近的麦当劳，告诉我你的预算和口味。<br class="desktop">我们把搭配、选配和算价，一起理清楚。</p><div class="hero-tags"><span>↗ 到店自取</span><span>◎ 明确价格依据</span><span>✦ WorkBuddy Skill</span></div></div><div class="hero-art"><img src="/meal.svg" alt="汉堡、薯条和饮料的原创插画"><div class="art-label">GOOD FOOD.<br>BETTER CHOICES.</div><div class="art-stamp">先看方案<br>再做决定</div></div></section>
-<aside id="service-banner" class="service-banner" role="status" hidden><div><strong>本地点餐服务暂时离线</strong><p>双击项目里的“启动麦麦助手.command”，保持终端运行，再点击重连。当前页面可以保留，但查询需要后端服务。</p></div><button id="reconnect" type="button">重新连接 ↻</button></aside>
-<section class="workspace" aria-label="点餐工作台">
-<aside class="controls"><div class="panel-heading"><span class="eyebrow">01 / YOUR PICK</span><h2>这顿想怎么吃？</h2></div>
+<div id="service-banner" class="service-banner" role="status" hidden><div><strong>本地点餐服务暂时离线</strong><p>双击项目里的“启动麦麦助手.command”，保持终端运行，再点击重连。当前页面可以保留，但查询需要后端服务。</p></div><button id="reconnect" type="button">重新连接 ↻</button></div>
+<section id="workspace" class="workspace" aria-label="点餐工作台">
+<aside class="controls"><div class="panel-heading"><div><span class="eyebrow">01 / YOUR PICK</span><h2>这顿想怎么吃？</h2></div><button id="toggle-conditions" type="button" class="conditions-toggle" aria-expanded="true" aria-controls="controls-content">收起条件 ↑</button></div><div id="controls-content">
 <div class="mode-control" role="group" aria-label="数据模式"><button id="demo-mode" class="active" aria-pressed="true">演示体验</button><button id="live-mode" aria-pressed="false">真实查询</button></div><p id="mode-note" class="small-note">演示数据 · 不代表当前供应或价格</p>
 <form id="search-form"><label for="brief">一句话说说需求 <span>可选</span></label><div class="brief-row"><input id="brief" placeholder="比如：30元，想吃汉堡，饮料无糖"><button type="button" id="parse-brief" aria-label="提取需求">↵</button></div><p class="micro">支持提取金额、汉堡／麦乐鸡、无糖关键词；提取后请核对。</p>
 <div class="location-row"><div><label for="city">城市</label><input id="city" value="北京" required maxlength="30"></div><div><label for="location">附近地点</label><input id="location" value="大钟寺" required maxlength="100"></div></div>
@@ -14,13 +14,13 @@
 <label for="preference">这次想吃</label><select id="preference"><option value="any">都可以，给我不同选择</option><option value="burger">汉堡 / 鸡排堡</option><option value="chicken">麦乐鸡 / 鸡块</option></select>
 <label class="switch-line" for="sugar-free"><span><strong>饮料只要明确无糖</strong><small>不把“无添加糖”直接当作无糖</small></span><input id="sugar-free" type="checkbox" checked></label>
 <button class="primary full" id="find-stores" type="submit">查找附近门店 <span>→</span></button></form>
-<div class="skill-note"><span class="skill-icon">✦</span><div><strong>也可以在 WorkBuddy 里用</strong><p>同一套点餐方法，保留独立 Skill 入口。</p><button id="download-skill">查看 / 下载 Skill ↗</button></div></div></aside>
+<div class="skill-note"><span class="skill-icon">✦</span><div><strong>也可以在 WorkBuddy 里用</strong><p>同一套点餐方法，保留独立 Skill 入口。</p><button id="download-skill">查看 / 下载 Skill ↗</button></div></div></div></aside>
 <div class="results-area"><div class="result-heading"><div><span class="eyebrow">02 / FIND YOUR MEAL</span><h2 id="result-title">选好门店，开始搭配</h2></div><span class="pill" id="data-badge">演示模式</span></div>
 <ol class="steps" aria-label="任务进度"><li id="step-1" class="active"><span>1</span>说需求</li><li id="step-2"><span>2</span>选门店</li><li id="step-3"><span>3</span>比方案</li></ol>
 <div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
 <div id="store-section" hidden><div class="section-line"><h3>附近门店</h3><span>点击选择 · 到店自取</span></div><div id="stores" class="store-list"></div><button id="recommend" class="primary" disabled>生成我的方案 →</button></div>
 <div id="selection-summary" class="selection-summary" hidden></div>
-<div id="plans"></div>
+<div id="plan-comparison" class="plan-comparison" role="status" aria-live="polite" hidden></div><div id="plans"></div>
 <div id="empty-state" class="empty-state"><div class="empty-orbit"><span>＋</span><i>¥</i></div><h3>把“随便吃点”变成具体选择。</h3><p>从左边填好预算，选一家门店。<br>我们会给出最多两套方案，供你比较。</p><div class="empty-features"><span>01 查菜单</span><span>02 定选配</span><span>03 看算价</span></div></div>
 <div id="evidence" class="evidence" hidden></div></div></section>
 <section class="how-it-works"><div><span class="eyebrow">A LITTLE LESS GUESSWORK</span><h2>把依据留住，<br>把选择交给你。</h2></div><div class="how-grid"><article><span>01</span><h3>真实数据有出处</h3><p>真实模式连接麦当劳 MCP；演示模式有清楚标记。</p></article><article><span>02</span><h3>改搭配，就重算</h3><p>价格对应具体选配，修改后先进入待核算状态。</p></article><article><span>03</span><h3>没找到，也说清楚</h3><p>解释检查范围和未知信息，不为了推荐而凑方案。</p></article></div></section>

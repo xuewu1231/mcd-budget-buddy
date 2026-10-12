@@ -19,3 +19,20 @@ export async function requestJSON(url, {body, timeoutMs = 15000, fetchImpl = glo
     return data;
   } finally {clearTimeout(timer);}
 }
+
+// Presentation uses confirmed integer fen only; it never infers a discount.
+export function budgetView(priceFen, budgetFen, dirty = false) {
+  if (dirty) return {kind: 'pending'};
+  if (!Number.isSafeInteger(priceFen) || priceFen < 0 || !Number.isSafeInteger(budgetFen) || budgetFen <= 0) return {kind: 'unknown'};
+  const percent = Math.round(priceFen / budgetFen * 100);
+  return {kind: priceFen <= budgetFen ? 'within' : 'over', percent, fill: Math.min(100, percent), remainingFen: budgetFen - priceFen};
+}
+
+export function comparePlans(plans, budgetFen) {
+  if (plans.length !== 2) return {kind: 'unavailable'};
+  if (plans.some(p => p.dirty)) return {kind: 'pending'};
+  if (plans.some(p => budgetView(p.priceFen, budgetFen).kind !== 'within')) return {kind: 'unavailable'};
+  const differenceFen = Math.abs(plans[0].priceFen - plans[1].priceFen);
+  if (!differenceFen) return {kind: 'same'};
+  return {kind: 'different', cheaperIndex: plans[0].priceFen < plans[1].priceFen ? 0 : 1, differenceFen};
+}
