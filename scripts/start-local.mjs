@@ -8,6 +8,10 @@ try {
  const response=await fetch(`http://127.0.0.1:${port}/api/status`,{signal:AbortSignal.timeout(1800)});
  const data=await response.json();
  if(data.app==='mcd-budget-buddy'){
+  if(data.dataMode!=='live'){
+   console.error(`端口 ${port} 运行的是旧版服务，尚未禁用体验数据。请在原终端停止旧服务后重启，或使用 PORT=4316 npm run start:workbuddy 启动新版。`);
+   process.exit(1);
+  }
   console.log(`麦麦预算助手已经运行：http://127.0.0.1:${port}`);
   console.log('如需更新认证配置，请先在原终端停止服务，再启动。');
   process.exit(0);

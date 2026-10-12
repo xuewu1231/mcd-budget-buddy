@@ -12,7 +12,7 @@ description: 通过麦当劳 MCP 查看活动日历和明确使用时段、展�
 ## 接入与范围
 
 需要已连接的麦当劳 MCP。未连接时引导用户参考 README 配置，不索取或展示 Token。
-使用当前连接暴露的工具；若需读取 tools/list，解析完整 JSON 对象并按 name 精确查找，不截取字符串猜测 schema。配置或工具访问失败时说明阻塞，不能把历史示例当实时数据。
+使用当前连接暴露的工具；若需读取 tools/list，解析完整 JSON 对象并按 name 精确查找，不截取字符串猜测 schema。配置或工具访问失败时说明阻塞，不能把历史示例当实时数据。网页也仅允许真实查询，没有合成数据体验入口。
 
 餐品核算当前仅支持到店自取。工具允许范围以 shared/policy.json 为准，包括活动日历 campaign-calendar 与只读的 available-coupons。available-coupons 只展示可领列表，不代表已领或门店可用；auto-bind-coupons 会领券，不得调用。不得调用创建/取消订单、领券、积分扣减或抽奖工具。
 
