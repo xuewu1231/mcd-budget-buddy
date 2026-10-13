@@ -1,5 +1,6 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
+  "checkoutTools": ["create-order", "query-order"],
   "allowedTools": [
     "query-nearby-stores",
     "query-meals",
@@ -19,6 +20,6 @@
   "maxResults": 3,
   "strictSugarFreePattern": "无糖|零糖|zero sugar|sugar free",
   "priceUnit": "fen",
-  "readOnly": true,
+  "planningReadOnly": true,
   "maxQuotes": 18
 }

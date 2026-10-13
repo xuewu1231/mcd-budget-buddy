@@ -7,8 +7,10 @@ import {findStores,recommend,recalculate} from './planner.mjs';
 import {parseBrief} from '../shared/domain.mjs';
 import {discover,compareStores} from './discovery.mjs';
 import {ServiceError} from './errors.mjs';
+import {checkoutService} from './checkout.mjs';
+import metadata from '../package.json' with {type:'json'};
 const root=fileURLToPath(new URL('../',import.meta.url));
-const port=Number(process.env.PORT||4318);
+const port=Number(process.env.PORT||4320);
 let token=process.env.MCD_MCP_TOKEN?.replace(/^Bearer\s+/i,'').trim();
 let authSource=token?'env':'none';
 if(!token && process.env.USE_WORKBUDDY_MCP === '1') {
@@ -19,13 +21,14 @@ if(!token && process.env.USE_WORKBUDDY_MCP === '1') {
 }
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
 const limits=new Map();
+const checkout=checkoutService();
 const server=http.createServer(async(req,res)=>{
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
  res.setHeader('Content-Security-Policy',"default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: https://cms-cdn.mcd.cn https://img.mcd.cn; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'");
  const expected=`http://${req.headers.host}`;
  if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host)||req.headers.origin&&req.headers.origin!==expected)return json(res,403,{error:'仅允许本地同源访问'});
  let url;try{url=new URL(req.url,expected);}catch{return json(res,400,{error:'请求地址无效'});}
- if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'mcd-budget-buddy',liveReady:Boolean(token),authSource,dataMode:'live',mode:'local',version:'0.5.0'});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'mcd-budget-buddy',liveReady:Boolean(token),authSource,dataMode:'live',mode:'local',version:metadata.version});
  if(url.pathname==='/api/skill'&&req.method==='GET'){res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(await readFile(path.join(root,'SKILL.md')));return;}
  if(url.pathname.startsWith('/api/')&&req.method==='POST'){
   if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'仅接受 JSON'});
@@ -34,9 +37,13 @@ const server=http.createServer(async(req,res)=>{
    let raw='';for await(const part of req){raw+=part;if(Buffer.byteLength(raw)>16384)throw new Error('请求内容过长');}
    const b=JSON.parse(raw);
    if(url.pathname==='/api/parse')return json(res,200,{...parseBrief(String(b.text||'').slice(0,500)),method:'keyword-rules'});
-   if(!['/api/discover','/api/stores','/api/recommend','/api/recalculate','/api/compare'].includes(url.pathname))return json(res,404,{error:'接口不存在'});
+   if(!['/api/discover','/api/stores','/api/recommend','/api/recalculate','/api/compare','/api/checkout-prepare','/api/checkout-confirm','/api/checkout-recent','/api/checkout-refresh'].includes(url.pathname))return json(res,404,{error:'接口不存在'});
    if(b.mode!==undefined&&b.mode!=='live')return json(res,400,{code:'LIVE_ONLY',error:'本应用仅支持真实查询'});
    if(!token)return json(res,409,{code:'NOT_CONFIGURED',error:'麦当劳连接尚未配置。双击“启动麦麦助手.command”使用本机 WorkBuddy 配置，或设置 .env 中的 MCD_MCP_TOKEN 后重启。'});
+   if(url.pathname==='/api/checkout-prepare')return json(res,200,await checkout.prepare(token,b));
+   if(url.pathname==='/api/checkout-confirm')return json(res,200,await checkout.confirm(token,b));
+   if(url.pathname==='/api/checkout-recent')return json(res,200,await checkout.recent(token));
+   if(url.pathname==='/api/checkout-refresh')return json(res,200,await checkout.refresh(token,b.receiptId));
    if(url.pathname==='/api/discover')return json(res,200,await discover(token));
    if(url.pathname==='/api/stores'){
     const keyword=String(b.keyword||'').trim();if(!keyword||keyword.length>100)throw new Error('请填写有效地点');
@@ -54,7 +61,7 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){return json(res,e instanceof ServiceError?e.status:400,{code:e instanceof ServiceError?e.code:'INVALID_REQUEST',error:e.message.startsWith('Unexpected')?'请求 JSON 无效':e.message.includes('token')||e.message.includes('Bearer')?'连接配置错误，请在本机检查配置':e.message});}
  }
  if(req.method!=='GET')return json(res,405,{error:'方法不支持'});
- const assets={'/':'web/index.html','/app.js':'web/app.js','/api.js':'web/api.js','/discovery.js':'shared/discovery.mjs','/radar.js':'web/radar.js','/styles.css':'web/styles.css','/meal.svg':'web/meal.svg','/manifest.webmanifest':'web/manifest.webmanifest','/icon.svg':'web/icon.svg'};
+ const assets={'/':'web/index.html','/app.js':'web/app.js','/checkout.js':'web/checkout.js','/api.js':'web/api.js','/discovery.js':'shared/discovery.mjs','/radar.js':'web/radar.js','/styles.css':'web/styles.css','/meal.svg':'web/meal.svg','/manifest.webmanifest':'web/manifest.webmanifest','/icon.svg':'web/icon.svg'};
  const file=assets[url.pathname];if(!file)return json(res,404,{error:'页面不存在'});
  try{const content=await readFile(path.join(root,file));const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};res.setHeader('Cache-Control','no-store');res.writeHead(200,{'Content-Type':`${types[path.extname(file)]}; charset=utf-8`});res.end(content);}catch{json(res,500,{error:'资源读取失败'});}
 });

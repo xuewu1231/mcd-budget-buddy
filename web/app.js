@@ -1,3 +1,4 @@
+import {createCheckoutUI} from './checkout.js';
 import {requestJSON,budgetView,comparePlans,icon,foodArt,roundChoices,selectedChoice,priceChart,restoreQuotedPlan,createConnectionMonitor,animateFeedback,setDisclosure,installInteractionFeedback,samePlanContext,quotedPlanUsable,proposalDifference} from './api.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10,7 +11,7 @@ const scrollTo=e=>e.scrollIntoView({behavior:reducedMotion()?'auto':'smooth',blo
 const controls=['city','location','budget','preference','priority','flavor','cup','sugar-free','brief','parse-brief','find-stores','recommend','toggle-conditions','regenerate-plans','restore-conditions','compare-prices','compare-plan','compare-store','activity-to-plan','clear-activity-context'];
 installInteractionFeedback();
 let checkingConnection = false, actionButton = null;
-const connectionMonitor=createConnectionMonitor({probe:()=>requestJSON('/api/status',{timeoutMs:8000}),expectedVersion:'0.5.0',onChange:renderConnection});
+const connectionMonitor=createConnectionMonitor({probe:()=>requestJSON('/api/status',{timeoutMs:8000}),expectedVersion:'0.6.0',onChange:renderConnection});
 function renderConnection(status){
  const kind=status.kind,online=kind==='online';
  if(online){state.serviceOnline=true;state.liveReady=status.liveReady;$('service-banner').hidden=true;$('live-status-label').textContent=status.liveReady?'麦当劳连接已配置':'请先连接麦当劳 MCP';$('connection-status').textContent=status.liveReady?`本地服务已连接 · ${status.authSource==='workbuddy'?'已读取 WorkBuddy 配置':'Token 已配置'}；实际接口将在查询时验证。`:'本地服务已连接，请先配置麦当劳 MCP 后查询。';}
@@ -19,7 +20,7 @@ function renderConnection(status){
   const banner=['offline','incompatible','slow'].includes(kind);state.serviceOnline=false;state.liveReady=false;$('service-banner').hidden=!banner;
   $('live-status-label').textContent=kind==='uncertain'?'连接暂未确认，自动重试中':kind==='slow'?'连接检查超时':kind==='incompatible'?'本地服务需要更新':'本地服务离线';
   $('service-banner-title').textContent=kind==='slow'?'连接检查超时，服务状态尚未确认':kind==='incompatible'?'本地服务需要更新':'暂时无法连接本地点餐服务';
-  $('service-banner-message').textContent=kind==='slow'?'这次检查没有及时返回，不代表服务已关闭。可以重新检查；你的预算与当前方案仍保留。':kind==='incompatible'?status.message:`请确认本页地址 ${location.origin} 的服务已启动，再点重连。新版启动文件默认使用4318；若自定义了端口，以启动终端显示的网页地址为准。当前页面使用 ${location.port}。`;
+  $('service-banner-message').textContent=kind==='slow'?'这次检查没有及时返回，不代表服务已关闭。可以重新检查；你的预算与当前方案仍保留。':kind==='incompatible'?status.message:`请确认本页地址 ${location.origin} 的服务已启动，再点重连。新版启动文件默认使用4320；若自定义了端口，以启动终端显示的网页地址为准。当前页面使用 ${location.port}。`;
   $('connection-status').textContent=status.message;
  }
  $('connection').innerHTML=`${icon('settings')}<span>${kind==='offline'?'连接待恢复':'连接设置'}</span>`;
@@ -49,6 +50,7 @@ function busy(value,text='',button=null,label='处理中…'){
  $('recommend').disabled=value||!state.store;$('query-retry').disabled=value;
  if($('change-store'))$('change-store').disabled=value;
  if(!value)document.querySelectorAll('[data-copy]').forEach(b=>{const p=state.plans[Number(b.dataset.copy)];b.disabled=!p||!quotedPlanUsable(p,state.quotedInput,input());});
+ if(!value&&$('checkout-chosen')){const p=state.plans[state.chosen];$('checkout-chosen').disabled=!p||!quotedPlanUsable(p,state.quotedInput,input());}
  if(!value&&$('copy-chosen')){const chosen=state.plans[state.chosen];$('copy-chosen').disabled=!chosen||!quotedPlanUsable(chosen,state.quotedInput,input());}
  if(!value&&state.conditionsChanged)document.querySelectorAll('.plan-card button,.plan-card select').forEach(e=>e.disabled=true);
  document.querySelector('.results-area').setAttribute('aria-busy',String(value));
@@ -123,11 +125,13 @@ function renderComparison(){
   box.innerHTML=`<div class="comparison-heading">${icon('compare')}<div><strong>${title}</strong><p>同一门店 · 不同搭配 · 当前核价</p></div></div>${priceChart(state.plans.map((p,i)=>({label:`方案 ${letter(i)}`,priceFen:p.priceFen,dirty:p.dirty})),Math.round(Number($('budget').value)*100),'几套搭配，价格一眼比')} `;
  }
 }
+const checkoutUI=createCheckoutUI({api});
+function startCheckout(i){const p=state.plans[i];if(state.busy||!quotedPlanUsable(p,state.quotedInput,input()))return;checkoutUI.open({...input(),code:p.id,changes:Object.fromEntries(p.roundList.map(r=>[r.round,r.comboItemList[0].code]))},p.priceFen);}
 function renderChosen(){
  const i=state.chosen,p=state.plans[i];
  $('chosen-plan').hidden=!p;if(!p)return;
- $('chosen-plan').innerHTML=`<div>${icon('check')}<span><small>我的选择 · 方案 ${letter(i)}</small><strong>${esc(p.name)}</strong></span></div><strong>${state.conditionsChanged?'上次 ':''}${p.dirty?'待核算':`¥${money(p.priceFen)}`}</strong><button id="copy-chosen" ${!quotedPlanUsable(p,state.quotedInput,input())?'disabled':''}>${state.conditionsChanged?'先按新条件生成':p.dirty?'先重新核算':'复制用餐清单'}</button><p class="chosen-meal-list">${selectedItems(p).map(esc).join(' ＋ ')}<small>用餐参考 · 未下单，需在麦当劳官方渠道下单</small></p>`;
- $('copy-chosen').onclick=()=>copyPlan(i);
+ $('chosen-plan').innerHTML=`<div>${icon('check')}<span><small>我的选择 · 方案 ${letter(i)}</small><strong>${esc(p.name)}</strong></span></div><strong>${state.conditionsChanged?'上次 ':''}${p.dirty?'待核算':`¥${money(p.priceFen)}`}</strong><button id="checkout-chosen" ${!quotedPlanUsable(p,state.quotedInput,input())?'disabled':''}>继续下单 →</button><button id="copy-chosen" ${!quotedPlanUsable(p,state.quotedInput,input())?'disabled':''}>${state.conditionsChanged?'先按新条件生成':p.dirty?'先重新核算':'复制用餐清单'}</button><p class="chosen-meal-list">${selectedItems(p).map(esc).join(' ＋ ')}<small>尚未下单 · 下一步确认门店、搭配与取餐方式</small></p>`;
+ $('copy-chosen').onclick=()=>copyPlan(i);$('checkout-chosen').onclick=()=>startCheckout(i);
 }
 function choosePlan(i){
  if(!matchingContext())return;
