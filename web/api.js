@@ -74,27 +74,76 @@ export function selectedChoice(plan, round) {
   return round.choices.find(x => String(x.code) === String(code));
 }
 
-// Illustrations classify names for display only, never for dietary eligibility.
+// Visual profiles distinguish shapes only. They are never used to infer ingredients,
+// nutrition, availability, options, or prices. Unknown names get a neutral dish.
 export function foodKind(name = '') {
-  if (/薯条|薯饼/.test(name)) return 'fries';
-  if (/玉米/.test(name)) return 'corn';
-  if (/咖啡|美式|红茶|牛奶|饮料|可乐|雪碧|果汁/.test(name)) return 'drink';
-  if (/堡/.test(name)) return 'burger';
-  if (/鸡|翅/.test(name)) return 'chicken';
-  return 'meal';
+  const n=String(name).normalize('NFKC');
+  if(/麦满分/.test(n))return 'muffin';
+  if(/厚松饼.*堡/.test(n))return 'pancakeburger';
+  const rules=[[/薯饼/,'hashbrown'],[/油条/,'youtiao'],[/香肠/,'sausage'],[/薯条/,'fries'],[/玉米/,'corn'],[/麦旋风/,'mcflurry'],[/圆筒|甜筒/,'icecream'],[/派(?:\d|$|\s)|苹果派|菠萝派|香芋派/,'pie'],[/蘸酱|风味酱|酱料/,'sauce'],[/麦满分/,'muffin'],[/厚松饼.*堡/,'pancakeburger'],[/松饼|煎饼/,'pancake'],[/卷/,'wrap'],[/鸡翅/,'wings'],[/麦乐鸡|鸡块/,'nuggets'],[/咖啡|冰咖|鲜萃.*咖|美式|拿铁|奶铁|卡布奇诺/,'coffee'],[/豆浆/,'soymilk'],[/黑巧|热巧克力/,'chocolate'],[/牛奶/,'milk'],[/果汁|苹果汁|橙汁|黄金橙橙/,'juice'],[/红茶|绿茶|茶饮/,'tea'],[/可乐|雪碧|汽水|怡泉/,'soda'],[/鱼.*堡|麦香鱼/,'fishburger'],[/牛.*堡|巨无霸|吉士汉堡/,'beefburger'],[/鸡.*堡|鸡排堡/,'chickenburger'],[/堡/,'burger'],[/粥/,'porridge'],[/蛋/,'egg']];
+  return rules.find(([pattern])=>pattern.test(n))?.[1] || 'unknown';
+}
+export function foodProfile(name='') {
+ const n=String(name).normalize('NFKC'),kind=foodKind(n);
+ const size=/大杯|大薯/.test(n)?'large':/小杯|小薯/.test(n)?'small':'regular';
+ const layers=/三层/.test(n)?3:/双层|双牛|巨无霸/.test(n)?2:1;
+ const quantity=Number(n.match(/(\d+)\s*块/)?.[1]||0);
+ return {kind,size,layers,quantity:quantity>=1&&quantity<=12?quantity:0,spicy:/辣|龙焰/.test(n),iced:/冰|冷/.test(n),zero:/无糖|零糖/.test(n)&&!/非无糖/.test(n),heart:/心形/.test(n),grilled:/板烧/.test(n),chocolate:/巧克力|朱古力/.test(n),berry:/蓝莓|莓果/.test(n)};
 }
 export function foodArt(name) {
-  const kind = foodKind(name);
-  const art = {
-    burger:'<g class="food-bun"><path d="M22 43Q28 14 60 14T98 43Z" fill="#f3bd59"/><path d="m42 29 4-2m12-6 4 2m14 8 4-2" stroke="#fff4ca" stroke-width="3"/></g><path d="m23 49 12-5 12 5 12-5 12 5 12-5 14 5v7H23Z" fill="#84a954"/><rect x="22" y="56" width="76" height="14" rx="6" fill="#65402e"/><path d="m26 57 60-1-17 12-12-7-13 9Z" fill="#ffce35"/><path d="M23 75h74q-2 15-18 15H41Q25 90 23 75Z" fill="#e6a74a"/>',
-    fries:'<g fill="#ffcd52"><rect x="27" y="18" width="10" height="51" rx="2"/><rect x="41" y="11" width="10" height="61" rx="2"/><rect x="55" y="20" width="10" height="48" rx="2"/><rect x="69" y="13" width="10" height="56" rx="2"/><rect x="83" y="25" width="9" height="42" rx="2"/></g><path d="M22 47q38 15 76 0L88 92H32Z" fill="#db0007"/><path d="M45 76q15 10 30 0" fill="none" stroke="#ffdc6a" stroke-width="4"/>',
-    drink:'<path d="M71 9h12v6H76l-7 29" fill="none" stroke="#db0007" stroke-width="4"/><path d="M30 34h60l-8 61H38Z" fill="#fffdf3"/><ellipse cx="60" cy="34" rx="31" ry="7" fill="#fff7d7"/><path d="m34 52 53-3-4 29-46 3Z" fill="#db0007"/><path d="M49 65h22" stroke="#fff8dd" stroke-width="4"/>',
-    chicken:'<g fill="#e6a445"><path d="M24 39q-3-13 13-13t18 15q2 17-15 21T24 39Z"/><path d="M65 35q3-14 17-10t15 19q-2 14-18 13T65 35Z"/><path d="M45 64q5-17 21-10t13 22q-5 15-21 11T45 64Z"/></g><g stroke="#c18431" stroke-width="2"><path d="m33 41 4 4m40-9 4 3m-20 34 3 3"/></g>',
-    corn:'<path d="M26 43h68l-8 48H34Z" fill="#db0007"/><ellipse cx="60" cy="43" rx="34" ry="13" fill="#ffce45"/><g fill="#ffe377" stroke="#dfa826" stroke-width="1"><ellipse cx="44" cy="40" rx="6" ry="4"/><ellipse cx="61" cy="37" rx="6" ry="4"/><ellipse cx="76" cy="41" rx="6" ry="4"/><ellipse cx="53" cy="48" rx="6" ry="4"/><ellipse cx="68" cy="47" rx="6" ry="4"/></g>',
-    meal:'<path d="M24 70h72v7q0 15-20 15H44q-20 0-20-15Z" fill="#ffbc0d"/><path d="M28 62q0-32 32-32t32 32H28Z" fill="#f5c66c"/><path d="M60 20v7M43 19l4 6M77 19l-4 6" stroke="#db0007" stroke-width="3"/>'
-  };
-  const size = kind === 'drink' && /大杯/.test(name || '') ? 'translate(-6 -5) scale(1.1)' : kind === 'drink' && /小杯/.test(name || '') ? 'translate(6 10) scale(.9)' : '';
-  return `<svg class="food-art food-${kind}" viewBox="0 0 120 110" aria-hidden="true"><ellipse cx="60" cy="97" rx="44" ry="6" fill="#00000009"/><g transform="${size}" stroke="#4b3827" stroke-width="1.5" stroke-linejoin="round">${art[kind]}</g></svg>`;
+ const p=foodProfile(name),group=(cls,body)=>`<g class="${cls}">${body}</g>`;
+ const flecks='<path d="m37 29 3-1m11 9 3 2m11-14 3 2m9 10 3-1m-27 16 3-1m16 2 3 1m9-9 3 1" fill="none" stroke="#c58931" stroke-width="2"/>';
+ const potato='<g transform="rotate(-12 60 60)"><rect x="20" y="36" width="80" height="45" rx="20" fill="#edb543"/><path d="m34 48 3-1m11 8 3 2m9-14 3 2m9 13 3-1m-34 11 3-1m17 2 3 1m14-9 3 1m-7-15 3 1" fill="none" stroke="#c58931" stroke-width="2"/></g>';
+ const heart='<path d="M60 38q-25-27-39-6Q4 52 60 90q56-38 39-58-14-21-39 6Z" fill="#edb543"/>'+flecks;
+ const burger=()=>{
+  const muffin=p.kind==='muffin',pancake=p.kind==='pancakeburger';
+  const bun=muffin?'<path d="M22 43q0-19 38-19t38 19Z" fill="#ead5a6"/><path d="M28 33h64" stroke="#cdb27d" stroke-width="2"/>':pancake?'<rect x="20" y="26" width="80" height="18" rx="9" fill="#db9d43"/><path d="M29 33h62" stroke="#f4d699"/>':'<path d="M20 42q5-29 40-29t40 29Z" fill="#f3bd59"/><path d="m37 27 4-2m13-5 4 2m15 7 4-2" stroke="#fff4cf" stroke-width="3"/>';
+  let pattyColor=p.kind==='beefburger'?'#6d4030':p.kind==='fishburger'?'#e2aa54':p.spicy?'#c86d30':p.grilled?'#ae7845':'#d89943';
+  let middle='';
+  for(let i=0;i<p.layers;i++){
+   const grooves=p.grilled?`<path d="m35 ${60+i*10} 6 5m12-5 6 5m12-5 6 5" stroke="#77522f"/>`:'';
+   middle+=group(`art-patty art-patty-${i}`,`<rect x="23" y="${57+i*10}" width="74" height="11" rx="4" fill="${pattyColor}"/>${grooves}`);
+  }
+  const egg=muffin&&/蛋/.test(String(name))?group('art-cheese','<ellipse cx="60" cy="53" rx="32" ry="6" fill="#fffaf0"/><ellipse cx="59" cy="53" rx="17" ry="4" fill="#ffd454"/>'):group('art-cheese','<path d="m23 55 74-1-19 11-17-6-17 7Z" fill="#ffd650"/>');
+  const bottomY=72+(p.layers-1)*10;
+  return group('art-bun',bun)+group('art-lettuce','<path d="m23 47 9-4 9 4 10-4 10 4 10-4 10 4 13-4 3 8-13 4-10-3-11 3-10-3-11 3-9-3-10 2Z" fill="#86a65a"/>')+middle+egg+group('art-bottom',`<path d="M23 ${bottomY}h74q-2 15-18 15H41q-16 0-18-15Z" fill="${muffin?'#dac38e':pancake?'#d79843':'#e7aa50'}"/>`);
+ };
+ let body;
+ if(['burger','chickenburger','beefburger','fishburger','muffin','pancakeburger'].includes(p.kind))body=burger();
+ else if(p.kind==='hashbrown')body=group('art-snack',p.heart?heart:potato);
+ else if(p.kind==='youtiao')body=group('art-snack','<g transform="rotate(16 60 60)"><path d="M37 23q9-10 17 0l-2 66q-7 9-15 0Z" fill="#e9af43"/><path d="M57 21q9-10 17 0l-2 68q-7 9-15 0Z" fill="#f2c264"/><path d="M47 26v58M66 25v58" stroke="#c99034" stroke-width="3"/><path d="m39 40 12-2m-12 15 12-2m10 4 11-2m-11 16 11-2" stroke="#d39b3b"/></g>');
+ else if(p.kind==='sausage')body=group('art-snack','<path d="M26 79q7-39 48-42 21-2 23 10 1 10-15 13-25 5-36 25-10 17-20-6Z" fill="#bc754f"/><path d="m43 57 8 9m6-19 8 10m8-14 5 8" stroke="#86462e" stroke-width="3"/><path d="m26 82-7 4m76-38 7-4" stroke="#b9784e" stroke-width="4"/>');
+ else if(p.kind==='fries')body=group('art-fries',[27,41,55,69,83].map((x,i)=>`<rect class="art-fry art-fry-${i}" x="${x}" y="${[18,11,20,13,25][i]}" width="9" height="${[51,61,48,56,42][i]}" rx="2" fill="#ffcd52"/>`).join(''))+group('art-box','<path d="M22 47q38 15 76 0L88 92H32Z" fill="#db0007"/><path d="M45 76q15 10 30 0" fill="none" stroke="#ffdc6a" stroke-width="4"/>');
+ else if(p.kind==='wings')body=group('art-pieces',Array.from({length:p.quantity||2},(_,i)=>{const x=(i%3)*28+20,y=Math.floor(i/3)*25+37;return `<g class="art-piece"><path d="M${x} ${y}q-2-13 10-14 13 0 17 14 8 1 9 8 0 8-10 8-12-1-17-8-8 1-9-8Z" fill="#cd8740"/><path d="m${x+10} ${y-3} 4 5m1-11 4 5" stroke="#99612c"/></g>`;}).join(''));
+ else if(p.kind==='nuggets')body=group('art-pieces',Array.from({length:p.quantity||4},(_,i)=>{const count=p.quantity||4,cols=count>6?4:count>4?3:2,x=18+i%cols*(80/cols),y=24+Math.floor(i/cols)*23,w=count>6?17:24;return `<g class="art-piece"><rect x="${x}" y="${y}" width="${w}" height="20" rx="7" fill="#e2a34a"/><path d="m${x+7} ${y+7} 3 2" stroke="#bd8130"/></g>`;}).join(''));
+ else if(p.kind==='corn')body=group('art-cup','<path d="M26 43h68l-8 48H34Z" fill="#db0007"/>')+group('art-lid','<ellipse cx="60" cy="43" rx="34" ry="13" fill="#ffce45"/><g fill="#ffe377" stroke="#dfa826" stroke-width="1"><ellipse cx="44" cy="40" rx="6" ry="4"/><ellipse cx="61" cy="37" rx="6" ry="4"/><ellipse cx="76" cy="41" rx="6" ry="4"/><ellipse cx="53" cy="48" rx="6" ry="4"/><ellipse cx="68" cy="47" rx="6" ry="4"/></g>');
+ else if(p.kind==='soymilk'||p.kind==='milk'&&/热|温/.test(String(name)))body=group('art-cup',`<path d="M32 39h51v38q0 16-25 16T32 77Z" fill="${p.kind==='soymilk'?'#e6d0a5':'#fff9ea'}"/><path d="M84 46q21-1 18 14-1 14-19 12" fill="none" stroke="#b99769" stroke-width="4"/><ellipse cx="58" cy="39" rx="25" ry="6" fill="#f8ead0"/>`)+group('art-steam','<path d="M44 29q-5-7 0-14m14 14q-5-7 0-14m14 14q-5-7 0-14" fill="none" stroke="#b6a998"/>');
+ else if(p.kind==='milk')body=group('art-cup','<path d="m37 30 8-13h30l8 13v61H37Z" fill="#fffef4"/><path d="M37 48h46v32H37Z" fill="#90b9d4"/><path d="M45 17v13h38M62 30v61" fill="none" stroke="#c1d4df"/><path d="M47 62h25" stroke="#fff" stroke-width="4"/>');
+ else if(p.kind==='coffee'||p.kind==='tea'||p.kind==='chocolate'){
+  const hot=!p.iced,color=p.kind==='tea'?'#ba6242':p.kind==='chocolate'?'#654131':/拿铁|奶铁|卡布奇诺/.test(String(name))?'#b58b66':'#865638';
+  body=group('art-cup',`<path d="M31 38h58l-7 54H38Z" fill="${hot?color:'#e9d8b3'}"/>${!hot?'<path d="M35 52h50l-5 32H40Z" fill="#986a46"/><path d="m48 57 7 2-2 8-7-2m17-4 8 1-1 8-8-1" fill="#d0e4e3"/>':'<path d="M43 62h34" stroke="#f6dfb2" stroke-width="4"/>'}`)+group('art-lid','<path d="M29 36h62v7H29Z" fill="#393638"/><path d="M35 31h50v6H35Z" fill="#575253"/>')+group('art-steam',hot?'<path d="M46 24q-6-7 0-14m15 14q-6-7 0-14m15 14q-6-7 0-14" stroke="#b5a899" fill="none"/>':'<path d="M68 10h10l-8 23" stroke="#db0007" fill="none" stroke-width="3"/>');
+ }
+ else if(p.kind==='soda'||p.kind==='juice'){
+  const juice=p.kind==='juice',sprite=/雪碧/.test(String(name)),color=juice?'#ecaa44':/怡泉/.test(String(name))?'#c8a54d':sprite?'#559f73':'#db0007';
+  body=group('art-straw','<path d="M71 9h12v6H76l-7 29" fill="none" stroke="#db0007" stroke-width="4"/>')+group('art-cup',`<path d="M30 34h60l-8 61H38Z" fill="#fffdf3"/><path d="m34 52 53-3-4 29-46 3Z" fill="${color}"/>${p.zero?'<text x="60" y="72" text-anchor="middle" fill="#fff" stroke="none" font-size="18" font-weight="800">0</text>':juice?'<circle cx="60" cy="65" r="9" fill="#ffe091"/><path d="M60 56v18m-9-9h18" stroke="#edaf45"/>':'<path d="M49 65h22" stroke="#fff8dd" stroke-width="4"/>'}`)+group('art-lid','<ellipse cx="60" cy="34" rx="31" ry="7" fill="#fff7d7"/>');
+ }
+ else if(p.kind==='mcflurry')body=group('art-cup','<path d="M30 48h60l-8 44H38Z" fill="#f4e1b1"/><path d="M34 66h52v13H34Z" fill="#db0007"/>')+group('art-lid',`<path d="M28 49q-3-15 11-19 0-17 14-16 13-13 20 3 20-3 18 18 13 5 4 16Z" fill="#fff8ec"/><g fill="${p.berry?'#826291':p.chocolate?'#76503c':'#d9ae4a'}"><circle cx="45" cy="36" r="4"/><circle cx="65" cy="25" r="4"/><circle cx="77" cy="41" r="4"/></g>`);
+ else if(p.kind==='icecream')body=group('art-cup','<path d="M38 53h44L61 97Z" fill="#eab369"/><path d="m45 58 26 23m-4-25-18 22" stroke="#c58e49"/>')+group('art-lid',`<path d="M34 53q-4-10 9-15-4-11 8-15-1-9 10-15 15 6 11 18 15 4 7 15 12 7 7 12Z" fill="${p.chocolate?'#9b6a48':'#fff8e8'}"/>`);
+ else if(p.kind==='pie')body=group('art-snack','<rect x="23" y="35" width="74" height="43" rx="9" fill="#e4ac55"/><path d="m36 43 7 25m12-25 7 25m12-25 7 25M30 38v33M91 39v31" stroke="#bd8137" stroke-width="2"/>');
+ else if(p.kind==='pancake')body=group('art-snack','<ellipse cx="60" cy="78" rx="38" ry="10" fill="#d79843"/><ellipse cx="60" cy="63" rx="38" ry="10" fill="#e6b264"/><ellipse cx="60" cy="48" rx="38" ry="10" fill="#f2c47b"/><path d="M54 43h16v11H54Z" fill="#ffdf82"/>');
+ else if(p.kind==='wrap')body=group('art-snack','<path d="m30 38 55-10 7 61-40 5Z" fill="#ecd4a2"/><path d="m37 36 44-8-1 20-35 7Z" fill="#85a554"/><path d="m41 41 35-6-2 11-29 7Z" fill="#d29b51"/><path d="m39 57 43 16m-37 4 38 7" stroke="#c6a779"/>');
+ else if(p.kind==='sauce')body=group('art-cup','<path d="M30 49h60l-9 36H39Z" fill="#fff3d1"/>')+group('art-lid',`<ellipse cx="60" cy="49" rx="32" ry="13" fill="${p.spicy?'#bd5734':'#e6b346'}"/>`);
+ else if(p.kind==='porridge')body=group('art-cup','<path d="M24 46h72q-4 42-36 42T24 46Z" fill="#fff4d8"/><ellipse cx="60" cy="46" rx="36" ry="11" fill="#e4d8b2"/><path d="m38 45 4 2m9-6 4 2m11 4 4 2m9-6 4 2" stroke="#b5a679"/>');
+ else if(p.kind==='egg')body=group('art-snack','<path d="M30 33q15-12 28-1 27-15 35 12 18 17-1 34-25 14-50 0-22-6-17-27-10-10 5-18Z" fill="#fff9e9"/><circle cx="60" cy="56" r="18" fill="#ffce4a"/>');
+ else body=group('art-snack','<ellipse cx="60" cy="71" rx="38" ry="12" fill="#faf3e2"/><path d="M60 37v17m0 8v2" stroke="#b3a78e" stroke-width="5" stroke-linecap="round"/>');
+ const size=p.size==='large'?'translate(-3 -3) scale(1.05)':p.size==='small'?'translate(5 6) scale(.92)':'';
+ return `<svg class="food-art food-${p.kind}" data-food-kind="${p.kind}" viewBox="0 0 120 110" aria-hidden="true"><ellipse class="art-shadow" cx="60" cy="98" rx="39" ry="5" fill="#00000009"/><g transform="${size}" stroke="#4b3827" stroke-width="1.5" stroke-linejoin="round">${body}</g></svg>`;
+}
+
+export function restoreQuotedPlan(plan) {
+ if(plan.priceStatus!=='calculated'||!Number.isSafeInteger(plan.priceFen)||plan.priceFen<0||!plan.request?.items?.[0]?.roundList)return null;
+ if(JSON.stringify(plan.roundList)!==JSON.stringify(plan.request.items[0].roundList))return null;
+ return {...plan,changes:undefined,dirty:false};
 }
 
 export function priceChart(rows, budgetFen, label = '核算总价对比') {

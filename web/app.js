@@ -1,4 +1,4 @@
-import {requestJSON,budgetView,comparePlans,icon,foodArt,roundChoices,selectedChoice,priceChart} from './api.js';
+import {requestJSON,budgetView,comparePlans,icon,foodArt,roundChoices,selectedChoice,priceChart,restoreQuotedPlan} from './api.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(n/100).toFixed(2);
@@ -29,6 +29,7 @@ function busy(value,text=''){
  $('recommend').disabled=value||!state.store;$('query-retry').disabled=value;
  if($('change-store'))$('change-store').disabled=value;
  if(!value)document.querySelectorAll('[data-copy]').forEach(b=>{const p=state.plans[Number(b.dataset.copy)];b.disabled=Boolean(p?.dirty||!p?.withinBudget);});
+ if(!value&&$('copy-chosen')){const chosen=state.plans.find(p=>p.id===state.chosen);$('copy-chosen').disabled=!chosen||chosen.dirty||!chosen.withinBudget;}
  document.querySelector('.results-area').setAttribute('aria-busy',String(value));
  $('query-wait').hidden=!value;clearInterval(waitTimer);
  if(value){
@@ -102,10 +103,28 @@ function openRound(i,id){
  editorContext={i,round,code:String(selectedChoice(p,round)?.code)};
  $('meal-editor-title').textContent=round.name||'调整这一项';$('meal-editor-context').textContent=`方案 ${i===0?'A':'B'} · ${p.name}`;
  $('meal-editor-hint').textContent=options.length>1?'点选你想换的餐品，再确认核算。图示仅供辨认。':'这是套餐里的固定搭配，当前接口没有其他可选项。';
- $('meal-editor-options').innerHTML=`<legend class="sr-only">${esc(round.name)}</legend>${options.map(x=>`<label class="meal-option"><input type="radio" name="meal-choice" value="${esc(x.code)}" ${String(x.code)===editorContext.code?'checked':''}>${foodArt(x.name)}<strong>${esc(x.name)}</strong><span class="option-tick" aria-hidden="true">${icon('check')}</span></label>`).join('')}`;
- $('apply-meal-choice').textContent=options.length>1?'确认搭配并核算':'保留这项';
+ $('meal-editor-options').innerHTML=`<legend class="sr-only">${esc(round.name)}</legend>${options.map(x=>`<label class="meal-option" data-choice-name="${esc(x.name)}"><input type="radio" name="meal-choice" value="${esc(x.code)}" ${String(x.code)===editorContext.code?'checked':''}>${foodArt(x.name)}<strong>${esc(x.name)}</strong><span class="option-tick" aria-hidden="true">${icon('check')}</span></label>`).join('')}`;
+ $('meal-editor-search').value='';$('meal-editor-search-row').hidden=options.length<6;filterMealOptions();updateMealPreview();
  $('meal-editor').showModal();document.body.classList.add('dialog-open');
 }
+function updateMealPreview(){
+ if(!editorContext)return;const selected=$('meal-editor-options').querySelector('input:checked');
+ const option=editorContext.round.choices.find(x=>String(x.code)===selected?.value),current=selectedChoice(state.plans[editorContext.i],editorContext.round);
+ const changed=selected?.value!==editorContext.code;
+ $('meal-editor-preview').textContent=changed?`${current.name} → ${option?.name||'选配未确认'}`:`当前搭配：${current.name}`;
+ $('apply-meal-choice').textContent=changed?'确认更换并核算':'保留当前搭配';
+}
+function filterMealOptions(){
+ const query=$('meal-editor-search').value.normalize('NFKC').trim().toLowerCase();let count=0;
+ const labels=$('meal-editor-options').querySelectorAll('.meal-option');labels.forEach(label=>{label.hidden=!label.dataset.choiceName.normalize('NFKC').toLowerCase().includes(query);if(!label.hidden)count++;});
+ $('meal-editor-count').textContent=`${count} / ${labels.length} 个选项`;$('meal-editor-empty').hidden=count!==0;$('apply-meal-choice').disabled=count===0;
+}
+$('meal-editor-search').oninput=filterMealOptions;
+$('meal-editor-options').onchange=updateMealPreview;
+document.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='mouse'||reducedMotion())return;
+ const card=e.target.closest('.meal-component,.meal-option');if(!card)return;card.classList.remove('food-playing');void card.offsetWidth;card.classList.add('food-playing');setTimeout(()=>card.classList.remove('food-playing'),1400);
+});
 $('apply-meal-choice').onclick=()=>{
  const context=editorContext,checked=$('meal-editor-options').querySelector('input:checked');if(!context||!checked)return;
  $('meal-editor').close();const changed=markChoice(context.i,context.round,checked.value);
@@ -119,7 +138,7 @@ function renderPlans(){
  return `<div class="round-field"><label for="option-${i}-${esc(r.id)}">${esc(r.name)}</label><select id="option-${i}-${esc(r.id)}" data-plan="${i}" data-round="${esc(r.id)}">${options.map(x=>`<option value="${esc(x.code)}" ${String(x.code)===String(selected?.code)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`;
  }).join('');
  const tray=p.detail.rounds.map(r=>{const selected=selectedChoice(p,r),count=roundChoices(r,$('sugar-free').checked).length;return `<button class="meal-component" data-edit-plan="${i}" data-edit-round="${esc(r.id)}" aria-label="${esc(r.name)}：${esc(selected?.name)}，${count>1?'点击换搭配':'查看固定搭配'}"><span class="component-round">${esc(r.name||'套餐子项')}</span>${foodArt(selected?.name)}<strong>${esc(selected?.name||'选配未确认')}</strong><span class="component-action">${count>1?'换一换':'固定搭配'} ${icon(count>1?'arrow':'check')}</span></button>`;}).join('');
- return `<article class="plan-card ${dirty?'is-pending':''} ${chosen?'is-chosen':''}" aria-label="方案 ${i===0?'A':'B'}：${esc(p.name)}"><div class="meal-plan-heading"><span class="plan-letter">${i===0?'A':'B'}</span><div><small>当前门店 · 实时核价</small><h3>${esc(p.name)}</h3></div><button data-choose="${i}" aria-pressed="${chosen}">${chosen?`${icon('check')}已选这套`:'选这套'}</button></div><div class="plan-body"><p class="tray-hint">${icon('meal')} 点击餐品换搭配 <span>原创示意插画</span></p><div class="meal-tray">${tray}</div><p class="food-list sr-only">${selectedItems(p).map(esc).join(' ＋ ')}</p><div class="price-line"><strong class="${dirty?'pending':''}">${dirty?'待核算':`<small>¥</small>${money(p.priceFen)}`}</strong><span>${dirty?'新搭配还没有报价':'整套价格 · 按选配提交核算'}</span></div><div class="budget-state">${budgetMarkup(p)}</div>${fields?`<details class="all-rounds"><summary>展开全部选配</summary>${fields}</details>`:''}<div class="plan-actions"><button class="recalc" data-recalc="${i}">${icon('refresh')}${dirty?'核算新搭配':'更新价格'}</button><button data-copy="${i}" ${dirty||!p.withinBudget?'disabled':''}>复制方案</button></div><details><summary>查看核算依据</summary><div class="calculation-evidence">${evidenceMarkup(p)}</div></details></div></article>`;
+ return `<article class="plan-card ${dirty?'is-pending':''} ${chosen?'is-chosen':''}" aria-label="方案 ${i===0?'A':'B'}：${esc(p.name)}"><div class="meal-plan-heading"><span class="plan-letter">${i===0?'A':'B'}</span><div><small>当前门店 · 实时核价</small><h3>${esc(p.name)}</h3></div><button data-choose="${i}" aria-pressed="${chosen}">${chosen?`${icon('check')}已选这套`:'选这套'}</button></div><div class="plan-body"><p class="tray-hint">${icon('meal')} 点击餐品换搭配 <span>原创示意插画</span></p><div class="meal-tray">${tray}</div><p class="food-list sr-only">${selectedItems(p).map(esc).join(' ＋ ')}</p><div class="price-line"><strong class="${dirty?'pending':''}">${dirty?'待核算':`<small>¥</small>${money(p.priceFen)}`}</strong><span>${dirty?'新搭配还没有报价':'整套价格 · 按选配提交核算'}</span></div><div class="budget-state">${budgetMarkup(p)}</div>${dirty&&restoreQuotedPlan(p)?`<button class="restore-choice" data-restore="${i}">${icon("refresh")}撤销修改，恢复上次搭配</button>`:""}${fields?`<details class="all-rounds"><summary>展开全部选配</summary>${fields}</details>`:''}<div class="plan-actions"><button class="recalc" data-recalc="${i}">${icon('refresh')}${dirty?'核算新搭配':'更新价格'}</button><button data-copy="${i}" ${dirty||!p.withinBudget?'disabled':''}>复制方案</button></div><details><summary>查看核算依据</summary><div class="calculation-evidence">${evidenceMarkup(p)}</div></details></div></article>`;
  }).join('')}</div>`;
  renderComparison();renderStoreComparison();renderChosen();
  document.querySelectorAll('[data-round]').forEach(s=>s.onchange=()=>{
@@ -130,6 +149,7 @@ function renderPlans(){
  document.querySelectorAll('[data-choose]').forEach(b=>b.onclick=()=>choosePlan(Number(b.dataset.choose)));
  document.querySelectorAll('[data-recalc]').forEach(b=>b.onclick=()=>recalc(Number(b.dataset.recalc)));
  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyPlan(Number(b.dataset.copy)));
+ document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.restore),restored=restoreQuotedPlan(state.plans[i]);if(!restored||state.busy)return;state.plans[i]=restored;renderPlans();feedback('已恢复上次核算的搭配与报价，查询时间见核算依据；也可以更新价格。');document.querySelector(`[data-recalc="${i}"]`)?.focus({preventScroll:true});});
 }
 function renderEvidence(){const r=state.result;$('evidence').hidden=false;$('evidence').innerHTML=`<p><strong>本次检查：${r.checked} 个候选完成实时算价${r.failed?`，${r.failed} 个未能确认`:''}。</strong></p><p>${r.couponCount===null?'券数据结构未确认':`查询返回 ${r.couponCount} 张券`} · 本版暂不自动应用优惠券</p><p>${esc(r.scope)}</p>`;}
 $('recommend').onclick=async()=>{if(!state.store||!$('search-form').reportValidity())return;clearPlans();retryAction=()=>$('recommend').click();$('empty-state').hidden=true;$('plans').innerHTML='<div class="plan-grid result-skeleton" aria-hidden="true"><div class="plan-skeleton"></div><div class="plan-skeleton"></div></div>';busy(true,'正在查询菜单与选配，并核算候选方案…');try{const r=await api('recommend',input());state.result=r;state.plans=r.plans;$('store-section').hidden=true;$('empty-state').hidden=true;renderSummary();progress(3);$('result-title').textContent='为这顿，选个合适的';if(r.plans.length){renderPlans();compactConditions(true);if(window.matchMedia('(max-width:640px)').matches)scrollTo(document.querySelector('.results-area'));$('result-title').focus({preventScroll:true});feedback(`查询完成，点击餐品可以换搭配。`);}else{$('plans').innerHTML=`<div class="no-solution"><h3>这次检查，没找到预算内方案。</h3><p>${r.closest?`已核算候选中，较低金额为 ¥${money(r.closest.priceFen)}，超过你的预算。`:'候选缺少符合条件的选配或未能成功核算。'}</p><p>不代表全店无解。你可以调整预算或餐品偏好，再试一次。</p>${r.closest?'<button id="raise-budget" class="primary">按这个金额调整预算 →</button>':''}</div>`;if(r.closest)$('raise-budget').onclick=()=>{$('budget').value=money(r.closest.priceFen);budgetUI();clearPlans();$('store-section').hidden=false;renderStores();feedback('预算已更新，请重新生成。');};feedback('没有凑出不符合要求的推荐。');}renderEvidence();}catch(e){$('plans').innerHTML='';feedback(e.message,true);}finally{busy(false);}};

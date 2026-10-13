@@ -127,3 +127,62 @@ button:not(:disabled),select,input{transition:background .18s,border-color .18s,
  .activity-search>button{width:44px;height:44px;top:1px;right:1px}
  .dialog-title>button{width:44px;height:44px}
 }
+
+/* Each food shape owns its moving parts; motion ends with the meal assembled. */
+.food-art{overflow:visible}.food-art g,.food-art .art-fry{transform-box:fill-box;transform-origin:center}
+.food-art .art-shadow{transform-box:fill-box;transform-origin:center}
+.editor-search{display:flex;align-items:center;gap:12px;margin:15px 0}.editor-search input{flex:1;min-width:0;font-size:15px}.editor-search>span{font-size:12px;white-space:nowrap;color:#777}
+#meal-editor-preview{color:#68501b!important;background:#fff8df;border-radius:10px;padding:10px 13px;line-height:1.8;font-size:13px!important;margin-bottom:10px!important}
+.restore-choice{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:44px;background:#fff8df;color:#83631e;border:1px solid #ecdba8;border-radius:12px;padding:10px;font-size:12px;margin:0 0 14px}
+.restore-choice .ui-icon{width:16px;height:16px}
+.skip-link{top:12px;opacity:0;pointer-events:none}.skip-link:focus{opacity:1;pointer-events:auto}
+@keyframes food-bun-flight{0%,100%{transform:translateY(0) rotate(0)}36%,55%{transform:translate(-2px,-17px) rotate(-7deg)}}
+@keyframes food-lettuce-flight{0%,100%{transform:translateY(0)}38%,56%{transform:translate(2px,-9px) rotate(4deg)}}
+@keyframes food-cheese-flight{0%,100%{transform:translateY(0)}40%,58%{transform:translate(-3px,-4px) rotate(-5deg)}}
+@keyframes food-patty-flight{0%,100%{transform:translateY(0)}42%,59%{transform:translate(3px,5px) rotate(3deg)}}
+@keyframes food-bottom-flight{0%,100%{transform:translateY(0)}44%,60%{transform:translateY(11px) rotate(-3deg)}}
+@keyframes food-fry-flight{0%,100%{transform:translateY(0) rotate(0)}35%,55%{transform:translate(2px,-16px) rotate(7deg)}}
+@keyframes food-fry-left{0%,100%{transform:translateY(0) rotate(0)}35%,55%{transform:translate(-4px,-21px) rotate(-9deg)}}
+@keyframes food-lid-flight{0%,100%{transform:translateY(0) rotate(0)}35%,55%{transform:translate(-2px,-15px) rotate(-9deg)}}
+@keyframes food-straw-flight{0%,100%{transform:translateY(0) rotate(0)}38%,57%{transform:translate(3px,-8px) rotate(6deg)}}
+@keyframes food-cup-dance{0%,100%{transform:rotate(0)}35%{transform:rotate(4deg)}65%{transform:rotate(-3deg)}}
+@keyframes food-snack-flip{0%,100%{transform:translateY(0) rotate(0)}38%,55%{transform:translateY(-13px) rotate(-12deg)}}
+@keyframes food-piece-hop{0%,100%{transform:translateY(0) rotate(0)}38%,55%{transform:translateY(-11px) rotate(9deg)}}
+@keyframes food-steam-rise{0%,100%{opacity:1;transform:translateY(0)}45%{opacity:.3;transform:translateY(-7px)}}
+@keyframes food-shadow-breathe{0%,100%{transform:scaleX(1);opacity:1}40%,60%{transform:scaleX(.78);opacity:.5}}
+@media(prefers-reduced-motion:no-preference){
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-bun{animation:food-bun-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-lettuce{animation:food-lettuce-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-cheese{animation:food-cheese-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-patty{animation:food-patty-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-bottom{animation:food-bottom-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-fry{animation:food-fry-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-fry:nth-child(even){animation-name:food-fry-left;animation-delay:.05s}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-lid{animation:food-lid-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-straw{animation:food-straw-flight 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-cup{animation:food-cup-dance 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-snack{animation:food-snack-flip 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-piece{animation:food-piece-hop 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-piece:nth-child(even){animation-delay:.08s}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-steam{animation:food-steam-rise 1.15s ease both}
+ :is(.meal-component:focus-visible,.meal-option:has(input:focus-visible),.food-playing) .art-shadow{animation:food-shadow-breathe 1.15s ease both}
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-bun{animation:food-bun-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-lettuce{animation:food-lettuce-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-cheese{animation:food-cheese-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-patty{animation:food-patty-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-bottom{animation:food-bottom-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-fry{animation:food-fry-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-fry:nth-child(even){animation-name:food-fry-left;animation-delay:.05s}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-lid{animation:food-lid-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-straw{animation:food-straw-flight 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-cup{animation:food-cup-dance 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-snack{animation:food-snack-flip 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-piece{animation:food-piece-hop 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-piece:nth-child(even){animation-delay:.08s}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-steam{animation:food-steam-rise 1.15s ease both}
+ :is(.meal-component:hover:not(:disabled),.meal-option:hover) .art-shadow{animation:food-shadow-breathe 1.15s ease both}
+}
+@media(max-width:640px){.editor-search{flex-wrap:wrap;gap:6px}.editor-search input{font-size:16px;width:100%}#meal-editor-preview{font-size:12px!important}}
+@media(prefers-reduced-motion:reduce){.food-art *{animation:none!important;transition:none!important}}

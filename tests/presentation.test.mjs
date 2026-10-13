@@ -46,3 +46,28 @@ test('图形选配保持真实编码映射，严格无糖排除反向描述',()=
  assert.equal(selectedChoice(plan,round).code,3071);
  plan.changes={'3':'3111'};assert.equal(selectedChoice(plan,round).code,3111);
 });
+
+import {foodKind,foodProfile,foodArt,restoreQuotedPlan} from '../web/api.js';
+test('早餐小食与饮品按自身形态区分，不回退成汉堡',()=>{
+ const cases={'脆薯饼':'hashbrown','脆香油条':'youtiao','德式图林根香肠':'sausage','中薯条':'fries','原味板烧鸡腿麦满分':'muffin','香肠蛋麦满分':'muffin','麦辣鸡翅2块':'wings','麦乐鸡4块':'nuggets','冰美式咖啡':'coffee','鲜萃冰咖':'coffee','冰燕麦奶铁中杯':'coffee','卡布奇诺中杯':'coffee','优品豆浆大杯':'soymilk','冰浓浓黑巧中杯':'chocolate','【美汁源】“黄金橙橙”':'juice','大杯怡泉+C':'soda','纯牛奶':'milk','100%苹果汁':'juice','锡兰红茶':'tea','无糖可口可乐中杯':'soda'};
+ for(const [name,kind]of Object.entries(cases))assert.equal(foodKind(name),kind,name);
+ assert.equal(foodKind('未识别新品'),'unknown');
+ assert.ok(!foodArt('<script>alert(1)</script>').includes('<script>'));
+});
+test('双层、杯型与鸡块数量有不同图形，异常数量不制造巨大插画',()=>{
+ assert.equal(foodProfile('双层脆鸡堡').layers,2);
+ assert.notEqual(foodArt('双层脆鸡堡'),foodArt('脆鸡堡'));
+ assert.equal(foodProfile('无糖可口可乐大杯').size,'large');
+ assert.notEqual(foodArt('无糖可口可乐小杯'),foodArt('无糖可口可乐大杯'));
+ assert.equal((foodArt('麦乐鸡4块').match(/class="art-piece"/g)||[]).length,4);
+ assert.equal((foodArt('麦辣鸡翅2块').match(/class="art-piece"/g)||[]).length,2);
+ assert.equal(foodProfile('麦乐鸡999999块').quantity,0);
+});
+test('撤销草稿只恢复已有核价记录，未知报价或请求不一致时拒绝恢复',()=>{
+ const rounds=[{round:'1',comboItemList:[{code:'x',quantity:1}]}];
+ const plan={roundList:rounds,request:{items:[{roundList:rounds}]},priceStatus:'calculated',priceFen:2500,observedAt:'2026-10-12T01:00:00Z',dirty:true,changes:{'1':'other'}};
+ const restored=restoreQuotedPlan(plan);
+ assert.equal(restored.dirty,false);assert.equal(restored.changes,undefined);assert.equal(restored.priceFen,2500);assert.equal(restored.observedAt,plan.observedAt);assert.equal(plan.dirty,true);
+ assert.equal(restoreQuotedPlan({...plan,priceFen:undefined}),null);
+ assert.equal(restoreQuotedPlan({...plan,request:{items:[{roundList:[]}]}}),null);
+});
