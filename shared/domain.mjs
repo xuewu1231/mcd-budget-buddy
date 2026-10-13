@@ -12,8 +12,11 @@ export const money = fen => (fen / 100).toFixed(2);
 export function requirements(input) {
   const budgetFen = yuanToFen(input.budget);
   if (budgetFen < 100 || budgetFen > 100000) throw new Error('预算请填写 1—1000 元');
-  const preference = ['any', 'burger', 'chicken'].includes(input.preference) ? input.preference : 'any';
-  return {budgetFen, preference, sugarFree: input.sugarFree === true};
+  const preference = ['any', 'burger', 'chicken','breakfast'].includes(input.preference) ? input.preference : 'any';
+  const priority=['save','variety'].includes(input.priority)?input.priority:'save';
+  const flavor=['any','spicy','mild'].includes(input.flavor)?input.flavor:'any';
+  const cup=['any','medium','large'].includes(input.cup)?input.cup:'any';
+  return {budgetFen, preference, sugarFree: input.sugarFree === true,priority,flavor,cup};
 }
 export function parseBrief(text) {
   const budget = text.match(/(\d+(?:\.\d{1,2})?)\s*(?:元|块)/)?.[1];
@@ -34,7 +37,8 @@ export function makeSelection(detail, strict, changes = {}) {
   });
 }
 export function mainMatches(name, preference) {
-  return preference === 'any' ? /汉堡|鸡排堡|麦乐鸡|鸡腿|鸡块/.test(name) : preference === 'burger' ? /汉堡|鸡排堡|牛堡|鸡堡/.test(name) : /麦乐鸡|鸡块/.test(name);
+  if(preference==='breakfast')return /麦满分|松饼.*堡|早餐/.test(name);
+  return preference === 'any' ? /堡|麦满分|麦乐鸡|鸡腿|鸡块|鸡翅/.test(name) : preference === 'burger' ? /堡|麦满分/.test(name) : /麦乐鸡|鸡块|鸡翅/.test(name);
 }
 export function selectionNames(detail, roundList) {
   return roundList.map(r => (detail.rounds.find(x => String(x.id) === r.round)?.choices || []).find(x => String(x.code) === r.comboItemList[0].code)?.name || '未知选项');

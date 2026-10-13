@@ -72,4 +72,5 @@ $('reset-activity-filters').onclick=()=>{category='all';$('activity-search').val
  document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;visibleLimit=6;render();});
  document.querySelectorAll('[data-time-preset]').forEach(b=>b.onclick=()=>{$('radar-time').value=b.dataset.timePreset;updateTime();});
 const burger=$('burger-play');burger.onclick=()=>{burger.classList.remove('burger-pop');void burger.offsetWidth;burger.classList.add('burger-pop');$('burger-caption').textContent=['少点纠结，多点薯条。','好吃的搭配，从你的预算开始。','活动看清楚，再决定吃什么。'][Math.floor(Math.random()*3)];};
-load();
+$('radar-fold').addEventListener('toggle',()=>{const open=$('radar-fold').open;$('radar-fold-action').textContent=open?'收起活动 ↑':'展开看看 ↓';if(open&&!data&& !$('refresh-radar').disabled)load();});
+if(location.hash==='#radar')$('radar-fold').open=true;

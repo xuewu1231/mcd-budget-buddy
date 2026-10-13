@@ -25,7 +25,7 @@ const server=http.createServer(async(req,res)=>{
  const expected=`http://${req.headers.host}`;
  if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host)||req.headers.origin&&req.headers.origin!==expected)return json(res,403,{error:'仅允许本地同源访问'});
  let url;try{url=new URL(req.url,expected);}catch{return json(res,400,{error:'请求地址无效'});}
- if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'mcd-budget-buddy',liveReady:Boolean(token),authSource,dataMode:'live',mode:'local',version:'0.4.0'});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'mcd-budget-buddy',liveReady:Boolean(token),authSource,dataMode:'live',mode:'local',version:'0.5.0'});
  if(url.pathname==='/api/skill'&&req.method==='GET'){res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(await readFile(path.join(root,'SKILL.md')));return;}
  if(url.pathname.startsWith('/api/')&&req.method==='POST'){
   if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'仅接受 JSON'});

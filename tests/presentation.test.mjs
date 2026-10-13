@@ -71,3 +71,9 @@ test('撤销草稿只恢复已有核价记录，未知报价或请求不一致�
  assert.equal(restoreQuotedPlan({...plan,priceFen:undefined}),null);
  assert.equal(restoreQuotedPlan({...plan,request:{items:[{roundList:[]}]}}),null);
 });
+test('三方案的价格图比较保留最低价和最大价差，待核算时暂停比较',()=>{
+ assert.deepEqual(comparePlans([{priceFen:2500},{priceFen:2300},{priceFen:2600}],3000),{kind:'different',cheaperIndex:1,differenceFen:300});
+ assert.deepEqual(comparePlans([{priceFen:2500},{priceFen:2500},{priceFen:2500}],3000),{kind:'same'});
+ assert.deepEqual(comparePlans([{priceFen:2500},{priceFen:2300,dirty:true},{priceFen:2600}],3000),{kind:'pending'});
+ assert.equal(foodProfile('无糖可乐中杯').size,'medium');assert.ok(foodArt('无糖可乐中杯').includes('中</text>'));assert.ok(foodArt('无糖可乐大杯').includes('大</text>'));
+});

@@ -29,12 +29,13 @@ export function budgetView(priceFen, budgetFen, dirty = false) {
 }
 
 export function comparePlans(plans, budgetFen) {
-  if (plans.length !== 2) return {kind: 'unavailable'};
+  if (plans.length < 2 || plans.length > 3) return {kind: 'unavailable'};
   if (plans.some(p => p.dirty)) return {kind: 'pending'};
   if (plans.some(p => budgetView(p.priceFen, budgetFen).kind !== 'within')) return {kind: 'unavailable'};
-  const differenceFen = Math.abs(plans[0].priceFen - plans[1].priceFen);
+  const amounts=plans.map(p=>p.priceFen),lowest=Math.min(...amounts);
+  const differenceFen = Math.max(...amounts)-lowest;
   if (!differenceFen) return {kind: 'same'};
-  return {kind: 'different', cheaperIndex: plans[0].priceFen < plans[1].priceFen ? 0 : 1, differenceFen};
+  return {kind: 'different', cheaperIndex: amounts.indexOf(lowest), differenceFen};
 }
 
 // Category chips filter text only; they do not establish offer eligibility.
@@ -85,7 +86,7 @@ export function foodKind(name = '') {
 }
 export function foodProfile(name='') {
  const n=String(name).normalize('NFKC'),kind=foodKind(n);
- const size=/大杯|大薯/.test(n)?'large':/小杯|小薯/.test(n)?'small':'regular';
+ const size=/大杯|大薯/.test(n)?'large':/小杯|小薯/.test(n)?'small':/中杯|中薯/.test(n)?'medium':'regular';
  const layers=/三层/.test(n)?3:/双层|双牛|巨无霸/.test(n)?2:1;
  const quantity=Number(n.match(/(\d+)\s*块/)?.[1]||0);
  return {kind,size,layers,quantity:quantity>=1&&quantity<=12?quantity:0,spicy:/辣|龙焰/.test(n),iced:/冰|冷/.test(n),zero:/无糖|零糖/.test(n)&&!/非无糖/.test(n),heart:/心形/.test(n),grilled:/板烧/.test(n),chocolate:/巧克力|朱古力/.test(n),berry:/蓝莓|莓果/.test(n)};
@@ -136,8 +137,9 @@ export function foodArt(name) {
  else if(p.kind==='porridge')body=group('art-cup','<path d="M24 46h72q-4 42-36 42T24 46Z" fill="#fff4d8"/><ellipse cx="60" cy="46" rx="36" ry="11" fill="#e4d8b2"/><path d="m38 45 4 2m9-6 4 2m11 4 4 2m9-6 4 2" stroke="#b5a679"/>');
  else if(p.kind==='egg')body=group('art-snack','<path d="M30 33q15-12 28-1 27-15 35 12 18 17-1 34-25 14-50 0-22-6-17-27-10-10 5-18Z" fill="#fff9e9"/><circle cx="60" cy="56" r="18" fill="#ffce4a"/>');
  else body=group('art-snack','<ellipse cx="60" cy="71" rx="38" ry="12" fill="#faf3e2"/><path d="M60 37v17m0 8v2" stroke="#b3a78e" stroke-width="5" stroke-linecap="round"/>');
- const size=p.size==='large'?'translate(-3 -3) scale(1.05)':p.size==='small'?'translate(5 6) scale(.92)':'';
- return `<svg class="food-art food-${p.kind}" data-food-kind="${p.kind}" viewBox="0 0 120 110" aria-hidden="true"><ellipse class="art-shadow" cx="60" cy="98" rx="39" ry="5" fill="#00000009"/><g transform="${size}" stroke="#4b3827" stroke-width="1.5" stroke-linejoin="round">${body}</g></svg>`;
+ const size=p.size==='large'?'':p.size==='medium'?'translate(10 17) scale(.8)':p.size==='small'?'translate(19 30) scale(.63)':'';
+ const portion=p.size==='regular'?'':`<g class="food-size-label"><circle cx="100" cy="15" r="11" fill="#fff5ce" stroke="#d7b45e"/><text x="100" y="19" text-anchor="middle" fill="#735116" stroke="none" font-size="12" font-weight="750">${{large:'大',medium:'中',small:'小'}[p.size]}</text></g>`;
+ return `<svg class="food-art food-${p.kind}" data-food-kind="${p.kind}" viewBox="0 0 120 110" aria-hidden="true"><ellipse class="art-shadow" cx="60" cy="98" rx="39" ry="5" fill="#00000009"/><g transform="${size}" stroke="#4b3827" stroke-width="1.5" stroke-linejoin="round">${body}</g>${portion}</svg>`;
 }
 
 export function restoreQuotedPlan(plan) {
@@ -153,7 +155,7 @@ export function priceChart(rows, budgetFen, label = '核算总价对比') {
   const height = rows.length * 82 + 42;
   const budgetX = 20 + scale(budgetFen);
   const summary = rows.map(r => `${r.label} ${(r.priceFen / 100).toFixed(2)}元`).join('，');
-  return `<figure class="price-chart"><figcaption><strong>${escapeHTML(label)}</strong><span>总价 · 元</span></figcaption><svg viewBox="0 0 540 ${height}" role="img" aria-label="${escapeHTML(summary)}，预算${(budgetFen / 100).toFixed(2)}元"><line class="chart-budget" x1="${budgetX}" x2="${budgetX}" y1="18" y2="${height - 25}"/>${rows.map((r,i) => `<g><text x="20" y="${25 + i*82}" class="chart-name">${escapeHTML(r.label)}</text><rect class="chart-track" x="20" y="${38+i*82}" width="480" height="22" rx="11"/><rect class="chart-bar ${i ? 'alternate' : ''}" x="20" y="${38+i*82}" width="${scale(r.priceFen)}" height="22" rx="11"/><text x="510" y="${27+i*82}" text-anchor="end" class="chart-amount">¥${(r.priceFen/100).toFixed(2)}</text></g>`).join('')}<text x="20" y="${height-4}" class="chart-axis">0</text><text x="510" y="${height-4}" text-anchor="end" class="chart-axis">预算 ¥${(budgetFen/100).toFixed(2)} · 虚线</text></svg><p>从 0 起比较实际核价；预算余量不代表优惠。套餐子项未单独报价，不拆分金额。</p></figure>`;
+  return `<figure class="price-chart"><figcaption><strong>${escapeHTML(label)}</strong><span>总价 · 元</span></figcaption><svg viewBox="0 0 540 ${height}" role="img" aria-label="${escapeHTML(summary)}，预算${(budgetFen / 100).toFixed(2)}元"><line class="chart-budget" x1="${budgetX}" x2="${budgetX}" y1="18" y2="${height - 25}"/>${rows.map((r,i) => `<g><text x="20" y="${25 + i*82}" class="chart-name">${escapeHTML(r.label)}</text><rect class="chart-track" x="20" y="${38+i*82}" width="480" height="22" rx="11"/><rect class="chart-bar ${i===2?'third':i?'alternate':''}" x="20" y="${38+i*82}" width="${scale(r.priceFen)}" height="22" rx="11"/><text x="510" y="${27+i*82}" text-anchor="end" class="chart-amount">¥${(r.priceFen/100).toFixed(2)}</text></g>`).join('')}<text x="20" y="${height-4}" class="chart-axis">0</text><text x="510" y="${height-4}" text-anchor="end" class="chart-axis">预算 ¥${(budgetFen/100).toFixed(2)} · 虚线</text></svg><p>从 0 起比较实际核价；预算余量不代表优惠。套餐子项未单独报价，不拆分金额。</p></figure>`;
 }
 
 export function enhanceMedia(root) {
