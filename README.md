@@ -2,9 +2,9 @@
 
 以预算与口味为中心的点餐网页 + 独立 WorkBuddy Skill。最多给出 A/B/C 三套具体搭配，每套实时核价；活动雷达按需展开，也支持同款跨店比较。
 
-![预算与口味工作台：左侧导航与 A/B/C 搭配](docs/meal-focus-desktop.png)
+![先看搭配，再比较价格的工作台](docs/meal-first-desktop.png)
 
-[单滚动工作台](docs/single-scroll.png) · [三方案工作台](docs/meal-focus-desktop.png) · [中杯与大杯](docs/cup-sizes.png) · [手机搭配界面](docs/meal-focus-mobile.png) · [图形选配弹窗](docs/meal-editor.png) · [早餐形态对应](docs/breakfast-shapes.png) · [活动雷达](docs/ui-mobile.png)
+[新版搭配优先工作台](docs/meal-first-desktop.png) · [修改条件保留方案](docs/conditions-retained.png) · [单滚动工作台](docs/single-scroll.png) · [三方案工作台](docs/meal-focus-desktop.png) · [中杯与大杯](docs/cup-sizes.png) · [手机搭配界面](docs/meal-first-mobile.png) · [图形选配弹窗](docs/meal-editor.png) · [早餐形态对应](docs/breakfast-shapes.png) · [活动雷达](docs/ui-mobile.png)
 
 ## 启动真实查询网页
 
@@ -33,6 +33,10 @@ Token 只在后端内存使用，不通过网页填写，不返回到浏览器�
 
 - 桌面左侧导航，手机侧滑导航；预算搭配优先，活动雷达默认收起，首次展开才查询。
 - 午饭、小食、早餐快捷偏好；支持省预算/换着吃、口味倾向与中杯/大杯优先。口味按名称匹配，实际辣度未知；杯型缺少匹配时说明。
+- 常用条件直接显示，口味/杯型与提取需求默认折叠；折叠标题显示当前偏好。
+- 餐品卡片先出现，价格图默认折叠到搭配后面；备选注明实际主食/小食差异。
+- 修改预算和偏好保留原方案与选中项为参考，明确上次预算和核价，并停用选配/复制/比较；支持恢复上次条件或直接按新条件生成。
+- 选中后显示完整用餐清单与杯型，明确未下单。
 - A 优先推荐，B/C 备选；主食或小食不同才算不同搭配，数量不足时如实展示。每套提交完整选配独立核价。
 - 中杯、大杯插画有尺寸差异和杯型角标，切换后重新核价。
 

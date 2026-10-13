@@ -215,3 +215,24 @@ summary:hover{background-color:#fff9e8}summary:active{background-color:#fff1ca}
 .ui-toast:not([hidden]){animation:card-arrive .16s ease both}
 .query-wait{animation:card-arrive .16s ease both}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* Start with a small form, then show the meal before optional analysis. */
+.extra-preferences{margin:18px 0;border:1px solid #e7dfce;border-radius:12px;background:#fff}
+.extra-preferences>summary,.price-details>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;cursor:pointer;padding:14px;font-size:13px;font-weight:700}
+.extra-preferences>summary::-webkit-details-marker,.price-details>summary::-webkit-details-marker{display:none}
+.extra-preferences>summary small{font-size:11px;color:#887856;font-weight:400;line-height:1.6;text-align:right}
+.extra-preferences-body{padding:0 14px 8px}.extra-preferences[open]>summary{border-bottom:1px solid #eee}
+.extra-preferences-body label:first-child{margin-top:14px}.extra-preferences-body .taste-row{grid-template-columns:1fr}
+.price-details{margin-top:18px;border:1px solid #e8dfcd;border-radius:16px;background:#fffaf0}
+.price-details>summary{padding:17px 18px;font-size:14px}.price-details>summary small{font-size:12px;color:#8b691f;font-weight:500}
+.price-details .plan-comparison{margin:0;border:0;background:transparent;box-shadow:none;padding:0 18px 18px}.price-details .comparison-heading{display:none}
+.plan-grid{align-items:start}.proposal-difference{font-size:13px;font-weight:750;color:#514225;margin:0 0 10px;line-height:1.7}
+.conditions-notice{margin:15px 0 20px;background:#fff4ce;border:1px solid #e8cf81;border-radius:14px;padding:17px}
+.conditions-notice strong{font-size:15px}.conditions-notice p{font-size:13px;color:#756238;margin:5px 0 12px;line-height:1.8}.notice-actions{display:flex;flex-wrap:wrap;gap:9px}.notice-actions button{font-size:13px;min-height:44px}
+.has-stale-plans .plan-card{border-color:#dedbd5}.has-stale-plans .meal-plan-heading{background:#f6f4f0}.has-stale-plans .price-line strong{color:#786f60}
+.chosen-plan{flex-wrap:wrap}.chosen-meal-list{flex-basis:100%;font-size:13px;line-height:1.8;margin:0;padding-top:11px;border-top:1px solid #ffffff25;color:#fff3c4}
+.chosen-meal-list small{display:block;font-size:11px;color:#ddd;margin-top:5px}
+@media(max-width:640px){.extra-preferences>summary{font-size:14px}.extra-preferences>summary small{font-size:12px}.price-details>summary{align-items:flex-start;flex-direction:column;gap:4px}.conditions-notice{padding:16px}.notice-actions{flex-direction:column}.notice-actions button{width:100%}.chosen-plan{gap:12px}.chosen-meal-list{font-size:12px}.proposal-difference{font-size:13px}}
+
+.extra-preferences>summary::after,.price-details>summary::after{content:'⌄';font-size:18px;color:#8a6c2b;flex-shrink:0;transition:transform .16s}
+.extra-preferences[open]>summary::after,.price-details[open]>summary::after{transform:rotate(180deg)}

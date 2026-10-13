@@ -98,6 +98,26 @@ export function budgetView(priceFen, budgetFen, dirty = false) {
   return {kind: priceFen <= budgetFen ? 'within' : 'over', percent, fill: Math.min(100, percent), remainingFen: budgetFen - priceFen};
 }
 
+export function samePlanContext(quoted, current) {
+  const key = input => {
+    if (!input || !input.storeCode || !/^\d+(\.\d{1,2})?$/.test(String(input.budget ?? '').trim())) return null;
+    const budget = Number(input.budget);
+    if (!String(input.budget ?? '').trim() || !Number.isFinite(budget) || budget < 1 || budget > 1000) return null;
+    return JSON.stringify([String(input.storeCode), budget, input.preference || 'any', input.priority || 'save', input.flavor || 'any', input.cup || 'any', input.sugarFree === true, String(input.city || '').trim(), String(input.keyword || '').trim()]);
+  };
+  const a = key(quoted), b = key(current);
+  return a !== null && a === b;
+}
+export function quotedPlanUsable(plan, quoted, current) {
+  return Boolean(plan) && samePlanContext(quoted, current) && !plan.dirty && plan.withinBudget === true && budgetView(plan.priceFen, Math.round(Number(current.budget) * 100)).kind === 'within';
+}
+export function proposalDifference(plan, first) {
+  if (!first || plan === first) return '先看这套，再挑备选';
+  if (plan.items[0] !== first.items[0]) return `换主食 · ${plan.items[0]}`;
+  const changes = plan.items.slice(1, -1).filter(name => !first.items.slice(1, -1).includes(name));
+  return changes.length ? `换小食 · ${changes.join('、')}` : '另一份已核算搭配';
+}
+
 export function comparePlans(plans, budgetFen) {
   if (plans.length < 2 || plans.length > 3) return {kind: 'unavailable'};
   if (plans.some(p => p.dirty)) return {kind: 'pending'};

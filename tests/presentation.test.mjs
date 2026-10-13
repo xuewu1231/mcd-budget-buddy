@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {budgetView, comparePlans} from '../web/api.js';
+import {budgetView, comparePlans, samePlanContext, quotedPlanUsable, proposalDifference} from '../web/api.js';
 
 test('预算占用按整数分计算，不把余量当成优惠', () => {
   assert.deepEqual(budgetView(2440, 3000), {kind:'within', percent:81, fill:81, remainingFen:560});
@@ -76,4 +76,20 @@ test('三方案的价格图比较保留最低价和最大价差，待核算时�
  assert.deepEqual(comparePlans([{priceFen:2500},{priceFen:2500},{priceFen:2500}],3000),{kind:'same'});
  assert.deepEqual(comparePlans([{priceFen:2500},{priceFen:2300,dirty:true},{priceFen:2600}],3000),{kind:'pending'});
  assert.equal(foodProfile('无糖可乐中杯').size,'medium');assert.ok(foodArt('无糖可乐中杯').includes('中</text>'));assert.ok(foodArt('无糖可乐大杯').includes('大</text>'));
+});
+
+const quotedContext={storeCode:'store',budget:'30',preference:'burger',priority:'variety',flavor:'any',cup:'medium',sugarFree:true,city:'北京',keyword:'大钟寺'};
+test('修改预算与口味、杯型或门店后旧核价立即不可用，恢复同条件可用原记录',()=>{
+ const p={priceFen:2290,withinBudget:true};
+ assert.equal(quotedPlanUsable(p,quotedContext,{...quotedContext,budget:'30.00'}),true);
+ for(const changes of [{budget:'20'},{cup:'large'},{sugarFree:false},{preference:'chicken'},{priority:'save'},{flavor:'mild'},{storeCode:'other'},{keyword:'知春里'}])assert.equal(quotedPlanUsable(p,quotedContext,{...quotedContext,...changes}),false);
+ assert.equal(quotedPlanUsable({...p,dirty:true},quotedContext,quotedContext),false);
+ assert.equal(quotedPlanUsable({...p,priceFen:3100},quotedContext,quotedContext),false);
+ for(const budget of ['', '3e1', '30.001', '-1'])assert.equal(samePlanContext(quotedContext,{...quotedContext,budget}),false);
+});
+test('备选说明来自实际主食或小食差异，不猜口味与单项价格',()=>{
+ const a={items:['鸡排堡','中薯条','无糖可乐中杯']};
+ assert.match(proposalDifference({items:['吉士汉堡','中薯条','无糖可乐中杯']},a),/换主食.*吉士汉堡/);
+ assert.match(proposalDifference({items:['鸡排堡','玉米杯','无糖可乐中杯']},a),/换小食.*玉米杯/);
+ assert.doesNotMatch(proposalDifference({items:['鸡排堡','中薯条','无糖可乐大杯']},a),/更饱|更健康|便宜/);
 });
