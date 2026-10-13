@@ -1,11 +1,11 @@
-import {requestJSON,activityMatches,icon,enhanceMedia} from './api.js';
+import {requestJSON,activityMatches,icon,enhanceMedia,animateFeedback} from './api.js';
 import {timeHint} from './discovery.js';
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data=null,selectedDate='',revision=0,visibleLimit=6,category='all',openedActivity=null;
 const toast=text=>window.dispatchEvent(new CustomEvent('mcd-toast',{detail:text}));
 function favorites(){try{const list=JSON.parse(localStorage.getItem('mcd-activity-favorites')||'[]');return Array.isArray(list)?list.filter(x=>typeof x==='string').slice(-100):[];}catch{return [];}}
-function message(text,error=false){$('radar-status').textContent=text;$('radar-status').classList.toggle('error',error);}
+function message(text,error=false){const changed=$('radar-status').textContent!==text;$('radar-status').textContent=text;if(changed)animateFeedback($('radar-status'),[{opacity:.6},{opacity:1}]);$('radar-status').classList.toggle('error',error);}
 function clock(){const m=Number($('radar-time').value);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
 function eventsForDay(){return data?.days.find(d=>d.date===selectedDate)?.events||[];}
 function updateTime(){
@@ -14,17 +14,17 @@ function updateTime(){
  document.querySelectorAll('[data-hint]').forEach(p=>{const e=eventsForDay().find(e=>e.id===p.dataset.hint);if(!e)return;const hint=timeHint(e,selectedDate,time);p.innerHTML=`${icon('clock')}<span>${esc(hint.text)}</span>`;p.closest('.activity-card').classList.toggle('match',hint.kind==='match');});
 }
 async function load(){
- const rev=++revision,firstLoad=data===null;$('refresh-radar').disabled=true;$('refresh-radar').classList.add('is-loading');$('radar-retry').hidden=true;$('activity-cards').setAttribute('aria-busy','true');message('正在翻开活动日历…');
+ if($('refresh-radar').disabled)return;const refreshHTML=$('refresh-radar').innerHTML;const rev=++revision,firstLoad=data===null;$('refresh-radar').disabled=true;$('refresh-radar').classList.add('is-loading');$('refresh-radar').innerHTML=`${icon('refresh')}<span>查询活动中…</span>`;$('radar-retry').hidden=true;$('activity-cards').setAttribute('aria-busy','true');message('正在翻开活动日历…');
  if(firstLoad)$('activity-cards').innerHTML=Array.from({length:3},()=>'<div class="activity-skeleton" aria-hidden="true"><div></div><span></span><span></span></div>').join('');
  try{
-  const result=await requestJSON('/api/discover',{body:{mode:'live'},timeoutMs:60000});if(rev!==revision)return;
+  const result=await requestJSON('/api/discover',{body:{mode:'live'},timeoutMs:60000});if(rev!==revision)return;window.dispatchEvent(new CustomEvent('mcd-service-response',{detail:{online:true,configured:true}}));
   data=result;selectedDate=selectedDate||data.serverDate;visibleLimit=6;$('radar-date').value=selectedDate;
   if(firstLoad)$('radar-time').value=Number(data.serverTime.slice(0,2))*60+Number(data.serverTime.slice(3));
   $('radar-data-source').textContent='实时活动';$('radar-data-source').classList.add('live');
   $('radar-stamp').textContent=`查询时间 ${new Date(data.observedAt).toLocaleString('zh-CN')}`;
   render();renderCoupons();message('活动已更新，选个日期看看。');
- }catch(e){if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';$('activity-results-caption').textContent='活动暂时未加载';$('radar-retry').hidden=false;message(`活动查询失败：${e.message}`,true);}}
- finally{if(rev===revision){$('refresh-radar').disabled=false;$('refresh-radar').classList.remove('is-loading');$('activity-cards').setAttribute('aria-busy','false');}}
+ }catch(e){if(e.status>0||e.code==='OFFLINE')window.dispatchEvent(new CustomEvent('mcd-service-response',{detail:{online:e.status>0,configured:e.code==='NOT_CONFIGURED'?false:undefined}}));if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';$('activity-results-caption').textContent='活动暂时未加载';$('radar-retry').hidden=false;message(`活动查询失败：${e.message}`,true);}}
+ finally{if(rev===revision){$('refresh-radar').disabled=false;$('refresh-radar').classList.remove('is-loading');$('refresh-radar').innerHTML=refreshHTML;$('activity-cards').setAttribute('aria-busy','false');}}
 }
 function openActivity(e){
  openedActivity=e;$('activity-dialog-title').textContent=e.title;$('activity-dialog-content').textContent=e.content||'接口未提供更多详情。';

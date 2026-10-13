@@ -8,7 +8,7 @@ import {parseBrief} from '../shared/domain.mjs';
 import {discover,compareStores} from './discovery.mjs';
 import {ServiceError} from './errors.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const port=Number(process.env.PORT||4310);
+const port=Number(process.env.PORT||4318);
 let token=process.env.MCD_MCP_TOKEN?.replace(/^Bearer\s+/i,'').trim();
 let authSource=token?'env':'none';
 if(!token && process.env.USE_WORKBUDDY_MCP === '1') {

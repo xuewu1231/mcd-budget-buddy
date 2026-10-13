@@ -1,6 +1,76 @@
 export class RequestError extends Error {
   constructor(message, code, status = 0) { super(message); this.name = 'RequestError'; this.code = code; this.status = status; }
 }
+// A stale health probe cannot override a newer successful business request.
+// One background timeout is inconclusive; it does not prove the service stopped.
+export function createConnectionMonitor({probe, expectedVersion, onChange = () => {}}) {
+  let revision = 0, failures = 0, inFlight = null, status = null;
+  const publish = value => { status = value; onChange(value); return value; };
+  const online = data => {
+    revision++; failures = 0;
+    return publish({kind:'online', liveReady:true, ...data});
+  };
+  const check = ({manual = false} = {}) => {
+    if (inFlight) return inFlight;
+    const rev = ++revision, previous = status?.kind === 'online' ? status : status?.previous;
+    if (manual || !status) publish({kind:'checking', previous});
+    const task = async () => {
+      try {
+        const data = await probe();
+        if (data.app !== 'mcd-budget-buddy' || data.dataMode !== 'live') throw new RequestError('这个地址不是当前真实查询服务，请检查启动地址。', 'SERVICE_MISMATCH');
+        if (data.version !== expectedVersion) throw new RequestError('本地服务版本较旧，请启动新版服务后再查询。', 'VERSION_MISMATCH');
+        if (rev !== revision) return status;
+        failures = 0;
+        return publish({...data, kind:'online'});
+      } catch (error) {
+        if (rev !== revision) return status;
+        failures++;
+        const kind = /MISMATCH/.test(error.code || '') ? 'incompatible' : error.code === 'TIMEOUT' ? 'slow' : manual || failures >= 2 ? 'offline' : 'uncertain';
+        return publish({kind, message:error.message, previous});
+      }
+    };
+    inFlight = task().finally(() => { inFlight = null; });
+    return inFlight;
+  };
+  return {check, online, getState:() => status};
+}
+
+const motions = new WeakMap(), disclosures = new WeakMap();
+const prefersQuiet = () => globalThis.matchMedia?.('(prefers-reduced-motion:reduce)').matches;
+export function animateFeedback(element, frames, options = {}) {
+  if (!element?.animate || prefersQuiet()) return;
+  motions.get(element)?.cancel();
+  const animation = element.animate(frames, {duration:180, easing:'cubic-bezier(.2,.8,.2,1)', ...options});
+  motions.set(element, animation);
+  animation.finished.catch(() => {}).finally(() => { if (motions.get(element) === animation) motions.delete(element); });
+}
+export function setDisclosure(details, open = !(disclosures.get(details)?.open ?? details.open)) {
+  const previous = disclosures.get(details);
+  const start = details.getBoundingClientRect().height;
+  previous?.animation?.cancel();
+  const summary = details.querySelector(':scope > summary');
+  summary?.setAttribute('aria-expanded', String(open));
+  details.dataset.expanded = String(open);
+  if (prefersQuiet() || !details.animate) { details.open = open; disclosures.delete(details); return; }
+  details.open = true;
+  const end = open ? details.getBoundingClientRect().height : summary.getBoundingClientRect().height;
+  const animation = details.animate([{height:`${start}px`, overflow:'hidden'}, {height:`${end}px`, overflow:'hidden'}], {duration:210, easing:'cubic-bezier(.2,.8,.2,1)'});
+  const state = {open, animation}; disclosures.set(details, state);
+  animation.finished.then(() => { if (disclosures.get(details) === state) { details.open = open; disclosures.delete(details); animation.cancel(); } }).catch(() => {});
+}
+export function installInteractionFeedback(root = document) {
+  root.addEventListener('click', event => {
+    const summary = event.target.closest('summary');
+    if (summary && !event.target.closest('a,button,input,select')) {
+      event.preventDefault();
+      const details = summary.parentElement;
+      setDisclosure(details, !(disclosures.get(details)?.open ?? details.open));
+      return;
+    }
+    const button = event.target.closest('button:not(:disabled)');
+    if (button && !button.matches('.burger-play')) animateFeedback(button, [{transform:'scale(.97)'}, {transform:'scale(1)'}], {duration:130});
+  }, true);
+}
 export async function requestJSON(url, {body, timeoutMs = 15000, fetchImpl = globalThis.fetch} = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

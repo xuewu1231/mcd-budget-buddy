@@ -3,8 +3,9 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import metadata from '../package.json' with {type:'json'};
 const root=fileURLToPath(new URL('../',import.meta.url));
+try{process.loadEnvFile(path.join(root,'.env'));}catch(error){if(error.code!=='ENOENT')throw error;}
 if(process.argv.includes('--workbuddy'))process.env.USE_WORKBUDDY_MCP='1';
-const port=Number(process.env.PORT||4310);
+const port=Number(process.env.PORT||4318);
 try {
  const response=await fetch(`http://127.0.0.1:${port}/api/status`,{signal:AbortSignal.timeout(1800)});
  const data=await response.json();
