@@ -12,3 +12,5 @@ test('选配校验拒绝缺失轮次、无效商品、异常数量',()=>{const p
 test('业务失败即使有金额也不能成功',()=>{assert.throws(()=>unwrap({isError:false,structuredContent:{success:false,data:{price:100}}}));assert.throws(()=>unwrap({isError:true,structuredContent:{success:true,data:{price:100}}}));assert.deepEqual(unwrap({content:[{type:'text',text:'{"success":true,"data":{"price":2500}}'}]}),{price:2500});});
 test('有限关键词解析不假装自由语义理解',()=>{assert.deepEqual(parseBrief('预算30元想吃汉堡饮料无糖'),{budget:'30',preference:'burger',sugarFree:true});assert.deepEqual(parseBrief('今天吃啥'),{});});
 test('菜单元价格保留，不当成分',()=>{assert.equal(menuEntries({meals:{x:{name:'套餐',currentPrice:'25'}}})[0].displayPrice,'25');});
+
+test('有限关键词处理明确否定，不把不用无糖和不要汉堡反向解析',()=>{assert.equal(parseBrief('30元，不要汉堡，想吃麦乐鸡').preference,'chicken');assert.equal(parseBrief('30元汉堡，不用无糖').sugarFree,false);assert.equal(parseBrief('30元汉堡，饮料不要含糖').sugarFree,true);assert.equal(parseBrief('30元，不想吃麦乐鸡').preference,undefined);});

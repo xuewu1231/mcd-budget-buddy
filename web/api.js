@@ -103,7 +103,7 @@ export function samePlanContext(quoted, current) {
     if (!input || !input.storeCode || !/^\d+(\.\d{1,2})?$/.test(String(input.budget ?? '').trim())) return null;
     const budget = Number(input.budget);
     if (!String(input.budget ?? '').trim() || !Number.isFinite(budget) || budget < 1 || budget > 1000) return null;
-    return JSON.stringify([String(input.storeCode), budget, input.preference || 'any', input.priority || 'save', input.flavor || 'any', input.cup || 'any', input.sugarFree === true, String(input.city || '').trim(), String(input.keyword || '').trim()]);
+    return JSON.stringify([String(input.storeCode), budget, input.preference || 'any', input.priority || 'save', input.flavor || 'any', input.cup || 'any', input.sugarFree === true, String(input.city || '').trim(), String(input.keyword || '').trim(),input.fulfillment||'pickup',input.addressId||'',input.needTableware===true]);
   };
   const a = key(quoted), b = key(current);
   return a !== null && a === b;
@@ -270,4 +270,8 @@ export function enhanceMedia(root) {
     img.addEventListener('load',ready);img.addEventListener('error',failed);
     if(img.complete)img.naturalWidth ? ready() : failed();
   });
+}
+
+export async function requireCompatibleBackend(check){
+ const status=await check();if(status?.kind!=='online')throw new RequestError(status?.message||'服务尚未确认，请重新检查连接。',status?.kind==='incompatible'?'VERSION_MISMATCH':'CONNECTION_UNCONFIRMED');return status;
 }

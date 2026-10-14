@@ -1,6 +1,6 @@
 # 提交材料与真实演示
 
-更新时间：2026-10-13。官方规则：https://github.com/M-China/mcd-developer-innovation-challenge/blob/main/activityGuidelines.md
+更新时间：2026-10-14。官方规则：https://github.com/M-China/mcd-developer-innovation-challenge/blob/main/activityGuidelines.md
 
 ## 已备材料
 
@@ -16,7 +16,7 @@ workbuddy.md 为作者在对话中粘贴的真实执行回报摘录，不是完�
 〖参赛申请〗
 项目名称：麦麦预算助手 · McD Budget Buddy
 项目地址：https://github.com/xuewu1231/mcd-budget-buddy
-项目简介：面向希望控制用餐预算和口味的到店自取用户，提供实时核价的A/B/C搭配、完整套餐选配和同款跨店比较；用户明确确认后创建待支付订单并进入官方支付流程，也可通过独立WorkBuddy Skill使用。代码已提供本地运行方法，真实下单支付仍待用户完成验收。
+项目简介：面向希望控制用餐预算和口味的用户，提供实时核价的A/B/C搭配、完整套餐选配和同款跨店比较；支持到店取餐及已有地址的即时麦乐送，将配送等费用计入整单预算，并展示匹配到的官方参考热量和按需查询的积分到期信息。用户明确确认后创建待支付订单并进入官方支付流程，也可通过独立WorkBuddy Skill使用。代码已提供本地运行方法，真实下单支付及配送履约仍待用户完成验收。
 ```
 
 最终文案需按实际验收结果更新。报名发布后须核对官方回复，不能把已发布 Issue 当作已经通过资格审核。截止为2026-10-25 23:59，北京时间，以官方最新规则为准。当前未提交报名。

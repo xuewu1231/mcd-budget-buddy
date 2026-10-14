@@ -1,6 +1,9 @@
 {
-  "version": "0.6.0",
-  "checkoutTools": ["create-order", "query-order"],
+  "version": "0.7.0",
+  "checkoutTools": [
+    "create-order",
+    "query-order"
+  ],
   "allowedTools": [
     "query-nearby-stores",
     "query-meals",
@@ -10,7 +13,10 @@
     "now-time-info",
     "list-nutrition-foods",
     "campaign-calendar",
-    "available-coupons"
+    "available-coupons",
+    "delivery-query-addresses",
+    "delivery-query-stores",
+    "query-my-account"
   ],
   "pickup": {
     "beType": 1,
@@ -21,5 +27,9 @@
   "strictSugarFreePattern": "无糖|零糖|zero sugar|sugar free",
   "priceUnit": "fen",
   "planningReadOnly": true,
-  "maxQuotes": 18
+  "maxQuotes": 18,
+  "delivery": {
+    "beType": 2,
+    "orderType": 2
+  }
 }

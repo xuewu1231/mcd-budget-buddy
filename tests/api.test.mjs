@@ -26,3 +26,6 @@ test('已连接但未配置Token仍保持未配置状态',async()=>{
  const m=createConnectionMonitor({expectedVersion:'0.5.0',probe:async()=>({...connected,liveReady:false})});
  const result=await m.check();assert.equal(result.kind,'online');assert.equal(result.liveReady,false);
 });
+
+import {requireCompatibleBackend} from '../web/api.js';
+test('不兼容或尚未确认的服务不能进入后续业务请求',async()=>{let called=false;const run=async(status)=>{await requireCompatibleBackend(async()=>status);called=true;};await assert.rejects(run({kind:'incompatible',message:'old'}),e=>e.code==='VERSION_MISMATCH');assert.equal(called,false);await assert.rejects(run({kind:'slow'}));assert.equal(called,false);await run({kind:'online',liveReady:true});assert.equal(called,true);});

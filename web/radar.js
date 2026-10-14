@@ -21,7 +21,7 @@ async function load(){
   data=result;selectedDate=selectedDate||data.serverDate;visibleLimit=6;$('radar-date').value=selectedDate;
   if(firstLoad)$('radar-time').value=Number(data.serverTime.slice(0,2))*60+Number(data.serverTime.slice(3));
   $('radar-data-source').textContent='实时活动';$('radar-data-source').classList.add('live');
-  $('radar-stamp').textContent=`查询时间 ${new Date(data.observedAt).toLocaleString('zh-CN')}`;
+  $('radar-stamp').textContent=`查询时间 ${new Date(data.observedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}`;
   render();renderCoupons();message('活动已更新，选个日期看看。');
  }catch(e){if(e.status>0||e.code==='OFFLINE')window.dispatchEvent(new CustomEvent('mcd-service-response',{detail:{online:e.status>0,configured:e.code==='NOT_CONFIGURED'?false:undefined}}));if(rev===revision){data=null;$('activity-cards').innerHTML='';$('radar-days').innerHTML='';$('claimable-coupons').innerHTML='';$('radar-stamp').textContent='尚未取得活动数据';$('activity-results-caption').textContent='活动暂时未加载';$('radar-retry').hidden=false;message(`活动查询失败：${e.message}`,true);}}
  finally{if(rev===revision){$('refresh-radar').disabled=false;$('refresh-radar').classList.remove('is-loading');$('refresh-radar').innerHTML=refreshHTML;$('activity-cards').setAttribute('aria-busy','false');}}

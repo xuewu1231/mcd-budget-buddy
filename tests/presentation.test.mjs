@@ -93,3 +93,5 @@ test('备选说明来自实际主食或小食差异，不猜口味与单项价�
  assert.match(proposalDifference({items:['鸡排堡','玉米杯','无糖可乐中杯']},a),/换小食.*玉米杯/);
  assert.doesNotMatch(proposalDifference({items:['鸡排堡','中薯条','无糖可乐大杯']},a),/更饱|更健康|便宜/);
 });
+
+test('配送地址、场景和餐具改变后旧报价不能继续下单',()=>{const context={...quotedContext,fulfillment:'delivery',addressId:'a',needTableware:false},p={priceFen:2800,withinBudget:true};assert.equal(quotedPlanUsable(p,context,context),true);for(const changes of [{addressId:'b'},{fulfillment:'pickup'},{needTableware:true}])assert.equal(quotedPlanUsable(p,context,{...context,...changes}),false);});

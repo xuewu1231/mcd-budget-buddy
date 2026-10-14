@@ -27,5 +27,19 @@ class PlanTests(unittest.TestCase):
         self.plan['request']['params']['arguments']['items'][0]['roundList'][2]['comboItemList'][0]['code'] = '3050'
         self.assertTrue(validate(self.plan))
 
+    def test_delivery_scope(self):
+        self.plan['fulfillment'] = 'delivery'
+        args = self.plan['request']['params']['arguments']
+        args.update(beType=2, orderType=2, beCode='test-be')
+        self.assertEqual(validate(self.plan), [])
+        args.pop('beCode')
+        self.assertTrue(validate(self.plan))
+    def test_wrong_delivery_or_pickup_be_code(self):
+        args = self.plan['request']['params']['arguments']
+        args['beCode'] = 'wrong-for-pickup'
+        self.assertTrue(validate(self.plan))
+        self.plan['fulfillment'] = 'delivery'
+        self.assertTrue(validate(self.plan))
+
 if __name__ == '__main__':
     unittest.main()

@@ -16,11 +16,14 @@ export function requirements(input) {
   const priority=['save','variety'].includes(input.priority)?input.priority:'save';
   const flavor=['any','spicy','mild'].includes(input.flavor)?input.flavor:'any';
   const cup=['any','medium','large'].includes(input.cup)?input.cup:'any';
-  return {budgetFen, preference, sugarFree: input.sugarFree === true,priority,flavor,cup};
+  const fulfillment=input.fulfillment??'pickup';if(!['pickup','delivery'].includes(fulfillment))throw new Error('用餐方式无效');
+  return {budgetFen, preference, sugarFree: input.sugarFree === true,priority,flavor,cup,fulfillment};
 }
 export function parseBrief(text) {
   const budget = text.match(/(\d+(?:\.\d{1,2})?)\s*(?:元|块)/)?.[1];
-  return { ...(budget ? {budget} : {}), ...(text.includes('汉堡') ? {preference:'burger'} : text.includes('麦乐鸡') || text.includes('鸡块') ? {preference:'chicken'} : {}), ...(text.includes('无糖') ? {sugarFree:true} : {}) };
+  const wants=(pattern)=>pattern.test(text)&&!new RegExp(`(?:不要|不想吃|不吃|不用|不需要)\\s*(?:${pattern.source})`).test(text);
+  const sugarFree=/不要无糖|不用无糖|不需要无糖|不要求无糖|无需无糖/.test(text)?false:/无糖|不含糖|不要含糖/.test(text)?true:undefined;
+  return { ...(budget ? {budget} : {}), ...(wants(/汉堡|鸡排堡/) ? {preference:'burger'} : wants(/麦乐鸡|鸡块/) ? {preference:'chicken'} : {}), ...(sugarFree!==undefined?{sugarFree}: {}) };
 }
 export function explicitlySugarFree(name) { return new RegExp(policy.strictSugarFreePattern,'i').test(name) && !/非无糖/.test(name); }
 export function makeSelection(detail, strict, changes = {}) {
@@ -44,7 +47,8 @@ export function selectionNames(detail, roundList) {
   return roundList.map(r => (detail.rounds.find(x => String(x.id) === r.round)?.choices || []).find(x => String(x.code) === r.comboItemList[0].code)?.name || '未知选项');
 }
 export function verifyPlan(req, detail, constraints, priceFen) {
-  if (req.beType !== 1 || req.orderType !== 1) throw new Error('仅支持到店自取');
+  const delivery=constraints.fulfillment==='delivery';
+  if(delivery?(req.beType!==2||req.orderType!==2||typeof req.beCode!=='string'||!req.beCode):(req.beType!==1||req.orderType!==1||req.beCode!==undefined))throw new Error('用餐场景与核价参数不一致');
   const item = req.items?.[0];
   if (!item || req.items.length !== 1 || item.quantity !== 1) throw new Error('套餐数量无效');
   const canonical = makeSelection(detail, constraints.sugarFree, Object.fromEntries((item.roundList || []).map(r => [r.round,r.comboItemList?.[0]?.code])));
