@@ -6,25 +6,26 @@ import path from 'node:path';
 import {connect} from './mcp.mjs';
 import {ServiceError} from './errors.mjs';
 import {requirements,makeSelection,selectionNames,verifyPlan,yuanToFen} from '../shared/domain.mjs';
+import {orderState,paidStatus,paymentDeadline} from '../shared/order-state.mjs';
+import QRCode from 'qrcode';
 
 const account=token=>createHash('sha256').update(token).digest('hex');
 const active=r=>['submitting','uncertain'].includes(r.state)||(r.state==='created'&&!['6','7','8'].includes(r.order?.status));
 const fail=(message,code,status=409)=>{throw new ServiceError(message,code,status);};
 export function paymentURL(value,orderId){
- try {const u=new URL(value);return u.protocol==='https:'&&u.hostname==='m.mcd.cn'&&!u.port&&!u.username&&!u.password&&u.pathname==='/mcp/scanToPay'&&u.searchParams.get('orderId')===orderId?u.href:null;}catch{return null;}
+ try {const u=new URL(value);return u.protocol==='https:'&&u.hostname==='m.mcd.cn'&&!u.port&&!u.username&&!u.password&&!u.hash&&u.pathname==='/mcp/scanToPay'&&[...u.searchParams].length===1&&u.searchParams.get('orderId')===orderId?u.href:null;}catch{return null;}
 }
-export function orderView(data,orderId,url,budgetFen){
+export function orderView(data,orderId,url,budgetFen,now=Date.now()){
  if(data?.orderId!==orderId)fail('订单查询返回的编号不一致，请在麦当劳官方渠道核对。','ORDER_MISMATCH',502);
  let amountFen=null;try{if(data.realTotalAmount!==undefined)amountFen=yuanToFen(data.realTotalAmount);}catch{}
- const status=String(data.orderStatus||'');
- const labels={'1':'待支付','2':'已支付，配餐中','4':'配送中','6':'已完成','7':'已取消','8':'已完成，已评价','10':'餐厅已确认，配餐中'};
- return {orderId,status,statusLabel:labels[status]||'状态暂未识别，请在官方渠道查看',amountFen,budgetFen,
-  withinBudget:amountFen!==null&&amountFen<=budgetFen,payUrl:status==='1'&&amountFen!==null&&amountFen<=budgetFen?paymentURL(url,orderId):null,
-  delivery:data.deliveryInfo?{address:String(data.deliveryInfo.deliveryAddress||''),addressDetail:String(data.deliveryInfo.addressDetail||''),contactName:String(data.deliveryInfo.customerNickname||''),phoneHint:maskedPhone(data.deliveryInfo.mobilePhone),estimatedAt:String(data.deliveryInfo.expectDeliveryTime||'')}:null,
+ const state=orderState(data),status=state.status,deadline=paymentDeadline(data.expirePayTime),paymentExpired=deadline!==null&&deadline<=now;
+ return {orderId,...state,amountFen,budgetFen,paymentExpired,
+  withinBudget:amountFen!==null&&amountFen<=budgetFen,payUrl:status==='1'&&!paymentExpired&&amountFen!==null&&amountFen<=budgetFen?paymentURL(url,orderId):null,
+  delivery:data.deliveryInfo?.deliveryAddress?{address:String(data.deliveryInfo.deliveryAddress||''),addressDetail:String(data.deliveryInfo.addressDetail||''),contactName:String(data.deliveryInfo.customerNickname||''),phoneHint:maskedPhone(data.deliveryInfo.mobilePhone),estimatedAt:String(data.deliveryInfo.expectDeliveryTime||'')}:null,
   storeName:String(data.storeName||''),storeAddress:String(data.storeAddress||''),takeWay:String(data.takeWay||''),
   products:(Array.isArray(data.orderProductList)?data.orderProductList:[]).map(p=>({name:String(p.productName||''),quantity:p.quantity,
    items:(Array.isArray(p.comboItemList)?p.comboItemList:[]).map(x=>({name:String(x.itemName||''),quantity:x.itemQuantity}))})),
-  pickupCode:['2','4','6','8','10'].includes(status)?String(data.pickupCode||''):null,expiresAt:String(data.expirePayTime||''),observedAt:new Date().toISOString()};
+  pickupCode:paidStatus(status)?String(data.pickupCode||''):null,lockerCode:paidStatus(status)?String(data.lockerCode||''):null,expiresAt:String(data.expirePayTime||''),observedAt:new Date(now).toISOString()};
 }
 
 // Only checkout grants access to create-order. A saved receipt prevents a retry
@@ -82,7 +83,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
    const result=await m.call('create-order',{...d.request,...(d.scene.fulfillment==='delivery'?{addressId:d.scene.addressId,...(typeof input.remark==='string'&&input.remark.trim()?{remark:input.remark.trim().slice(0,50)}:{})}:{takeWayCode:input.takeWayCode})});
    if(typeof result.orderId!=='string'||!result.orderId)throw new Error('missing order');
    r.orderId=result.orderId;r.payUrl=paymentURL(result.payH5Url,result.orderId);r.state='created';
-   try{r.order={...orderView(result.orderDetail,result.orderId,r.payUrl,r.budgetFen),quotedPriceFen:r.quotedPriceFen};}catch{r.order={orderId:r.orderId,status:'',statusLabel:'订单已创建，详情待核对',amountFen:null,withinBudget:false,payUrl:null,products:[]};}
+   try{r.order={...orderView(result.orderDetail,result.orderId,r.payUrl,r.budgetFen,clock()),quotedPriceFen:r.quotedPriceFen};}catch{r.order={orderId:r.orderId,status:'',statusLabel:'订单已创建，详情待核对',amountFen:null,withinBudget:false,payUrl:null,products:[]};}
    d.state='created';
   }catch(e){r.state=e?.code==='MCP_BUSINESS'?'failed':'uncertain';d.state=r.state;}
   try{await save();}catch{r.message='订单记录保存失败，请记下编号并在官方渠道核对，勿重复创建。';}
@@ -90,7 +91,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
  }
  async function recent(token){await load(true);return {receipts:receipts.filter(r=>r.owner===account(token)).slice(-10).reverse().map(publicReceipt)};}
  async function refreshImpl(token,id){await load();const r=receipts.find(x=>x.id===id&&x.owner===account(token));if(!r?.orderId)fail('尚未取得订单编号，请先在官方 App 核对。','ORDER_UNCERTAIN');
-  const m=await openMcp(token,{checkout:true});try{const data=await m.call('query-order',{orderId:r.orderId});r.order={...orderView(data,r.orderId,r.payUrl,r.budgetFen),quotedPriceFen:r.quotedPriceFen};await save();return publicReceipt(r);}finally{await m.close();}}
+  const m=await openMcp(token,{checkout:true});try{const data=await m.call('query-order',{orderId:r.orderId});r.order={...orderView(data,r.orderId,r.payUrl,r.budgetFen,clock()),quotedPriceFen:r.quotedPriceFen};await save();return publicReceipt(r);}finally{await m.close();}}
  async function guarded(action){await mkdir(path.dirname(journal),{recursive:true,mode:0o700});let lock;try{lock=await open(journal+'.lock','wx',0o600);}catch(e){fail(e.code==='EEXIST'?'另一个订单操作正在进行，或上次操作中断。请先在官方渠道核对，勿重复下单。':'无法建立本地下单保护，请检查目录权限。','CHECKOUT_BUSY',409);}
   try{await load(true);return await action();}finally{await lock.close();await unlink(journal+'.lock');}}
  async function confirm(token,input){if(input.confirm!==true)fail('请先核对并明确确认创建订单。','CHECKOUT_CONFIRM',400);return guarded(()=>confirmImpl(token,input));}
@@ -101,8 +102,13 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
    // A stale creation lock must stop writes, not prevent reading a known order.
    await load(true);const r=receipts.find(x=>x.id===id&&x.owner===account(token));
    if(!r?.orderId)fail('尚未取得订单编号，请先在官方 App 核对。','ORDER_UNCERTAIN');
-   const m=await openMcp(token,{checkout:true});try{const data=await m.call('query-order',{orderId:r.orderId});return {...publicReceipt({...r,order:{...orderView(data,r.orderId,r.payUrl,r.budgetFen),quotedPriceFen:r.quotedPriceFen}}),message:'最新状态已查询；本机记录暂无法更新，请勿重复创建订单。'};}finally{await m.close();}
+   const m=await openMcp(token,{checkout:true});try{const data=await m.call('query-order',{orderId:r.orderId});return {...publicReceipt({...r,order:{...orderView(data,r.orderId,r.payUrl,r.budgetFen,clock()),quotedPriceFen:r.quotedPriceFen}}),message:'最新状态已查询；本机记录暂无法更新，请勿重复创建订单。'};}finally{await m.close();}
   }
  }
- return {prepare,confirm,recent,refresh};
+ async function payment(token,id){
+  // Recheck the owned order, not a URL supplied by the browser. No new transaction.
+  const receipt=await refresh(token,id),url=receipt.order?.payUrl;
+  return {receipt,qrDataUrl:url?await QRCode.toDataURL(url,{errorCorrectionLevel:'M',margin:4,width:280}):null};
+ }
+ return {prepare,confirm,recent,refresh,payment};
 }
