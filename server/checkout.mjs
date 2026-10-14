@@ -55,6 +55,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
    const roundList=makeSelection(detail,constraints.sugarFree,input.changes);let request={...scope,items:[{productCode:input.code,quantity:1,roundList}],needTableware:input.needTableware===true},coupon=null;
    if(input.couponRef){if(input.useCoupons!==true)fail('用券条件已变化，请重新核价。','COUPON_SELECTION');const c=await resolveCoupon(m,scope,input.code,input.couponRef);request=withCoupon(request,c);coupon=couponView(c);}
    verifyPlan(request,detail,constraints);const quote=await m.call('calculate-price',request);
+   if(!Number.isSafeInteger(quote?.price)||quote.price<0)fail('最新金额未确认，不能继续创建订单。请重新核价。','PRICE_RESPONSE',502);
    if(!verifyPlan(request,detail,constraints,quote.price))fail('最新价格已超预算，请回到方案调整。','CHECKOUT_OVER_BUDGET');
    const ways=scene.fulfillment==='delivery'?[]:(quote.takeWayList||[]).filter(w=>typeof w.code==='string'&&w.code&&typeof w.title==='string').map(w=>({code:w.code,title:w.title,subtitle:String(w.subtitle||'')}));
    if(scene.fulfillment==='pickup'&&!ways.length)fail('接口没有返回可用取餐方式，暂不能创建订单。','CHECKOUT_TAKEWAY');

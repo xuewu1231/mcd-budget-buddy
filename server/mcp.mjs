@@ -13,7 +13,7 @@ export function unwrap(result) {
   return body.data;
 }
 export async function connect(token,{checkout=false}={}) {
-  const client = new Client({name:'mcd-budget-buddy',version:'0.9.0'});
+  const client = new Client({name:'mcd-budget-buddy',version:'0.9.1'});
   const transport = new StreamableHTTPClientTransport(new URL('https://mcp.mcd.cn'), {requestInit:{headers:{Authorization:`Bearer ${token}`}}});
   try {
     await client.connect(transport);

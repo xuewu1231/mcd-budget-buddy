@@ -49,17 +49,17 @@ export async function recommend(token, storeCode,input,{openMcp=connect}={}){
  return {nutritionError:enrichment.nutritionError,fulfillment:scene.fulfillment,deliveryAddress:scene.address||null,plans:within,closest:within.length?null:ordered[0]||null,checked:plans.length,attempted:candidates.length,failed:failures.length,couponCount:coupons?.count??null,couponError,couponApplied:within.some(p=>p.coupon),observedAt:new Date().toISOString(),scope:`本次最多检查${policy.maxCandidates}个套餐、提交${policy.maxQuotes}次价格核算，最多返回3套；不穷举单品组合。口味倾向按名称匹配，实际辣度未核验。${input.useCoupons===true?'匹配到的套餐最多试算一张已有券，只有整单报价更低才选择；不领券、不穷举多券组合。':'本次未选择用券。'}`};
  }finally {await m.close();}
 }
-export async function recalculate(token,storeCode,code,changes,input){
- const c=requirements(input),m=await connect(token);
+export async function recalculate(token,storeCode,code,changes,input,{openMcp=connect}={}){
+ const c=requirements(input),m=await openMcp(token);
  try {
  const scene=await resolveScenario(m,input,storeCode),scope=scene.scope;
  const detail=await m.call('query-meal-detail',{...scope,code});
  const roundList=makeSelection(detail,c.sugarFree,changes);
  const args={...scope,items:[{productCode:code,quantity:1,roundList}],needTableware:input.needTableware===true};
- let coupons=null;
- if(input.useCoupons===true){if(input.couponRef){const selected=await resolveCoupon(m,scope,code,input.couponRef);coupons={usable:[selected]};}else{try{coupons=storeCoupons(await m.call('query-store-coupons',scope));}catch{}}}
+ verifyPlan(args,detail,c);let coupons=null,couponIssue=null;
+ if(input.useCoupons===true){if(input.couponRef){const selected=await resolveCoupon(m,scope,code,input.couponRef);coupons={usable:[selected]};}else{try{coupons=storeCoupons(await m.call('query-store-coupons',scope));}catch{couponIssue={name:'已有券',reason:'券查询未成功，本次按无券实价核算，不代表没有可用券'};}}}
  const q=await quoteWithOwnedCoupon(m,args,coupons,{enabled:input.useCoupons===true});verifyPlan(q.request,detail,c);
- const enrichment=await enrichPlans(m,[{...planRecord({code,name:detail.name||'套餐'},detail,roundList,q.price,q.request,c),coupon:q.coupon,couponIssue:q.couponIssue}]);
+ const enrichment=await enrichPlans(m,[{...planRecord({code,name:detail.name||'套餐'},detail,roundList,q.price,q.request,c),coupon:q.coupon,couponIssue:q.couponIssue||couponIssue}]);
  return {...enrichment.plans[0],nutritionError:enrichment.nutritionError,edited:true,reason:'按你修改的搭配重新核算',notes:[]};
  }finally{await m.close();}
 }
