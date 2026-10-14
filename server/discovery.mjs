@@ -18,5 +18,5 @@ export async function compareStores(token,input,{quoteMeal=recalculate}={}){
  const first=await quote(input.storeCode),second=await quote(input.otherStoreCode);
  // Reject remapped or silently defaulted choices, on either store.
  if(JSON.stringify(first.roundList)!==JSON.stringify(input.roundList))throw new Error('当前选配已变化，请重新生成后比价');
- return {first:{storeCode:input.storeCode,priceFen:first.priceFen,observedAt:first.observedAt},second:{storeCode:input.otherStoreCode,priceFen:second.priceFen,observedAt:second.observedAt},...compareQuotes(first,second),mode:'live',evidence:'两店按同一商品与完整选配分别提交核算；响应未回显选配，未验证最终订单。不含自动用券，不代表全部门店最低价。'};
+ return {first:{storeCode:input.storeCode,priceFen:first.priceFen,coupon:first.coupon?.name||null,observedAt:first.observedAt},second:{storeCode:input.otherStoreCode,priceFen:second.priceFen,coupon:second.coupon?.name||null,observedAt:second.observedAt},...compareQuotes(first,second),mode:'live',evidence:'两店按同一商品与完整选配分别提交核算；响应未回显选配，未验证最终订单。已有券按各店适用情况分别匹配与核价；不代表全部门店最低价。'};
 }

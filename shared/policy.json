@@ -1,5 +1,5 @@
 {
-  "version": "0.8.1",
+  "version": "0.9.0",
   "checkoutTools": [
     "create-order",
     "query-order"
@@ -9,6 +9,7 @@
     "query-meals",
     "query-meal-detail",
     "query-store-coupons",
+    "query-my-coupons",
     "calculate-price",
     "now-time-info",
     "list-nutrition-foods",

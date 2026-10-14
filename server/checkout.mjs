@@ -8,6 +8,7 @@ import {ServiceError} from './errors.mjs';
 import {requirements,makeSelection,selectionNames,verifyPlan,yuanToFen} from '../shared/domain.mjs';
 import {orderState,paidStatus,paymentDeadline} from '../shared/order-state.mjs';
 import QRCode from 'qrcode';
+import {resolveCoupon,withCoupon,couponView} from './coupons.mjs';
 
 const account=token=>createHash('sha256').update(token).digest('hex');
 const active=r=>['submitting','uncertain'].includes(r.state)||(r.state==='created'&&!['6','7','8'].includes(r.order?.status));
@@ -51,7 +52,8 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
    const scene=await resolveScenario(m,input,input.storeCode,{verifyStore:true}),scope=scene.scope;
    const detail=await m.call('query-meal-detail',{...scope,code:input.code});
    const ids=(detail.rounds||[]).map(r=>String(r.id));if(ids.length!==Object.keys(input.changes).length||ids.some(id=>typeof input.changes[id]!=='string'||!input.changes[id]))fail('选配不完整或已变化，请回到方案重新选择。','CHECKOUT_SELECTION');
-   const roundList=makeSelection(detail,constraints.sugarFree,input.changes),request={...scope,items:[{productCode:input.code,quantity:1,roundList}],needTableware:input.needTableware===true};
+   const roundList=makeSelection(detail,constraints.sugarFree,input.changes);let request={...scope,items:[{productCode:input.code,quantity:1,roundList}],needTableware:input.needTableware===true},coupon=null;
+   if(input.couponRef){if(input.useCoupons!==true)fail('用券条件已变化，请重新核价。','COUPON_SELECTION');const c=await resolveCoupon(m,scope,input.code,input.couponRef);request=withCoupon(request,c);coupon=couponView(c);}
    verifyPlan(request,detail,constraints);const quote=await m.call('calculate-price',request);
    if(!verifyPlan(request,detail,constraints,quote.price))fail('最新价格已超预算，请回到方案调整。','CHECKOUT_OVER_BUDGET');
    const ways=scene.fulfillment==='delivery'?[]:(quote.takeWayList||[]).filter(w=>typeof w.code==='string'&&w.code&&typeof w.title==='string').map(w=>({code:w.code,title:w.title,subtitle:String(w.subtitle||'')}));
@@ -63,7 +65,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
    if(drafts.size>=100)fail('确认页面过多，请稍后重试。','CHECKOUT_BUSY');
    const id=randomUUID(),expiresAt=clock()+5*60000;
    const nutrition=(await enrichPlans(m,[{detail,roundList}])).plans[0];
-   const preview={fulfillment:scene.fulfillment,deliveryAddress:scene.address||null,fees:feeView(quote),nutrition:nutrition.nutrition,nutritionObservedAt:nutrition.nutritionObservedAt,draftId:id,name:String(detail.name||'所选套餐'),storeName:scene.store.name,storeAddress:scene.store.address,items:selectionNames(detail,roundList),priceFen:quote.price,budgetFen:constraints.budgetFen,takeWays:ways,expiresAt,observedAt:new Date(clock()).toISOString(),needTableware:request.needTableware};
+   const preview={coupon,fulfillment:scene.fulfillment,deliveryAddress:scene.address||null,fees:feeView(quote),nutrition:nutrition.nutrition,nutritionObservedAt:nutrition.nutritionObservedAt,draftId:id,name:String(detail.name||'所选套餐'),storeName:scene.store.name,storeAddress:scene.store.address,items:selectionNames(detail,roundList),priceFen:quote.price,budgetFen:constraints.budgetFen,takeWays:ways,expiresAt,observedAt:new Date(clock()).toISOString(),needTableware:request.needTableware};
    drafts.set(id,{owner,basket,request,scene,context:{...input},preview,expiresAt,state:'prepared'});return preview;
   }finally{await m.close();}
  }
@@ -78,6 +80,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
   inFlight.add(d.basket);d.state='connecting';let m;try{m=await openMcp(token,{checkout:true});}catch(e){d.state='prepared';inFlight.delete(d.basket);throw e;}
   try{
    if(d.scene.fulfillment==='delivery'){const fresh=await resolveScenario(m,d.context,d.request.storeCode);if(fresh.scope.beCode!==d.scene.scope.beCode||JSON.stringify(fresh.address)!==JSON.stringify(d.scene.address))fail('配送地址或门店已变化，请重新确认。','CHECKOUT_ADDRESS_CHANGED');}
+   if(d.context.couponRef){const c=await resolveCoupon(m,d.scene.scope,d.context.code,d.context.couponRef),item=d.request.items[0];if(c.id!==item.couponId||c.code!==item.couponCode)fail('优惠券已变化，请重新核价。','COUPON_CHANGED');}
    const current=await m.call('calculate-price',d.request);
    if(clock()>=d.expiresAt||current.price!==d.preview.priceFen||!Number.isSafeInteger(current.price))fail('核算金额已变化或确认已过期，请重新核价后确认。','CHECKOUT_PRICE_CHANGED');
    if(d.scene.fulfillment==='pickup'&&!current.takeWayList?.some(w=>w.code===input.takeWayCode))fail('当前取餐方式已变化，请重新确认。','CHECKOUT_TAKEWAY');

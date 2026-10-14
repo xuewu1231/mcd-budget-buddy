@@ -5,13 +5,13 @@ import metadata from '../package.json' with {type:'json'};
 const root=fileURLToPath(new URL('../',import.meta.url));
 try{process.loadEnvFile(path.join(root,'.env'));}catch(error){if(error.code!=='ENOENT')throw error;}
 if(process.argv.includes('--workbuddy'))process.env.USE_WORKBUDDY_MCP='1';
-const port=Number(process.env.PORT||4324);
+const port=Number(process.env.PORT||4326);
 try {
  const response=await fetch(`http://127.0.0.1:${port}/api/status`,{signal:AbortSignal.timeout(1800)});
  const data=await response.json();
  if(data.app==='mcd-budget-buddy'){
   if(data.dataMode!=='live'||data.version!==metadata.version){
-   console.error(`端口 ${port} 运行的是旧版服务。请在原终端停止旧服务后重启，或使用 PORT=4324 npm run start:workbuddy 启动新版。`);
+   console.error(`端口 ${port} 运行的是旧版服务。请在原终端停止旧服务后重启，或使用 PORT=4326 npm run start:workbuddy 启动新版。`);
    process.exit(1);
   }
   console.log(`麦麦预算助手已经运行：http://127.0.0.1:${port}`);

@@ -1,5 +1,7 @@
 import {addresses,addressView,fulfillment} from './scenarios.mjs';
 import {pointView} from './nutrition.mjs';
+import {resolveScenario} from './scenarios.mjs';
+import {storeCoupons,couponView} from './coupons.mjs';
 import {connect} from './mcp.mjs';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
@@ -13,7 +15,7 @@ import {ServiceError} from './errors.mjs';
 import {checkoutService} from './checkout.mjs';
 import metadata from '../package.json' with {type:'json'};
 const root=fileURLToPath(new URL('../',import.meta.url));
-const port=Number(process.env.PORT||4324);
+const port=Number(process.env.PORT||4326);
 let token=process.env.MCD_MCP_TOKEN?.replace(/^Bearer\s+/i,'').trim();
 let authSource=token?'env':'none';
 if(!token && process.env.USE_WORKBUDDY_MCP === '1') {
@@ -31,6 +33,7 @@ const server=http.createServer(async(req,res)=>{
  const expected=`http://${req.headers.host}`;
  if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host)||req.headers.origin&&req.headers.origin!==expected)return json(res,403,{error:'仅允许本地同源访问'});
  let url;try{url=new URL(req.url,expected);}catch{return json(res,400,{error:'请求地址无效'});}
+ if(url.pathname==='/api/map-config'&&req.method==='GET')return json(res,200,{provider:'amap',enabled:false,configured:Boolean(process.env.AMAP_JS_KEY&&process.env.AMAP_JS_SECURITY_CODE)});
  if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'mcd-budget-buddy',liveReady:Boolean(token),authSource,dataMode:'live',mode:'local',version:metadata.version});
  if(url.pathname==='/api/skill'&&req.method==='GET'){res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(await readFile(path.join(root,'SKILL.md')));return;}
  if(url.pathname.startsWith('/api/')&&req.method==='POST'){
@@ -40,10 +43,16 @@ const server=http.createServer(async(req,res)=>{
    let raw='';for await(const part of req){raw+=part;if(Buffer.byteLength(raw)>16384)throw new Error('请求内容过长');}
    const b=JSON.parse(raw);
    if(url.pathname==='/api/parse')return json(res,200,{...parseBrief(String(b.text||'').slice(0,500)),method:'keyword-rules'});
-   if(!['/api/discover','/api/stores','/api/recommend','/api/recalculate','/api/compare','/api/checkout-prepare','/api/checkout-confirm','/api/checkout-recent','/api/checkout-refresh','/api/checkout-payment','/api/addresses','/api/points'].includes(url.pathname))return json(res,404,{error:'接口不存在'});
+   if(!['/api/discover','/api/stores','/api/recommend','/api/recalculate','/api/compare','/api/checkout-prepare','/api/checkout-confirm','/api/checkout-recent','/api/checkout-refresh','/api/checkout-payment','/api/coupons','/api/addresses','/api/points'].includes(url.pathname))return json(res,404,{error:'接口不存在'});
    if(b.mode!==undefined&&b.mode!=='live')return json(res,400,{code:'LIVE_ONLY',error:'本应用仅支持真实查询'});
    if(!token)return json(res,409,{code:'NOT_CONFIGURED',error:'麦当劳连接尚未配置。双击“启动麦麦助手.command”使用本机 WorkBuddy 配置，或设置 .env 中的 MCD_MCP_TOKEN 后重启。'});
    if(url.pathname==='/api/addresses'||url.pathname==='/api/points'){const m=await connect(token);try{return json(res,200,url.pathname==='/api/addresses'?{addresses:(await addresses(m)).map(addressView)}:pointView(await m.call('query-my-account',{})));}finally{await m.close();}}
+   if(url.pathname==='/api/coupons'){
+    if(typeof b.storeCode!=='string'||!b.storeCode||b.storeCode.length>60)throw new Error('请先选择门店');
+    const m=await connect(token);try{const scene=await resolveScenario(m,b,b.storeCode),list=storeCoupons(await m.call('query-store-coupons',scene.scope));let ownedTotal=null,accountError=null;try{const d=await m.call('query-my-coupons',{page:1,pageSize:20});if(Number.isSafeInteger(d.totalCount)&&d.totalCount>=0)ownedTotal=d.totalCount;else accountError='卡包总数格式未确认';}catch{accountError='卡包查询未成功，不代表没有券';}
+     return json(res,200,{ownedTotal,accountError,count:list.count,coupons:list.usable.map(couponView),unsupported:list.unsupported,observedAt:new Date().toISOString()});
+    }finally{await m.close();}
+   }
    if(url.pathname==='/api/checkout-prepare')return json(res,200,await checkout.prepare(token,b));
    if(url.pathname==='/api/checkout-confirm')return json(res,200,await checkout.confirm(token,b));
    if(url.pathname==='/api/checkout-recent')return json(res,200,await checkout.recent(token));
@@ -67,9 +76,9 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){return json(res,e instanceof ServiceError?e.status:400,{code:e instanceof ServiceError?e.code:'INVALID_REQUEST',error:e.message.startsWith('Unexpected')?'请求 JSON 无效':e.message.includes('token')||e.message.includes('Bearer')?'连接配置错误，请在本机检查配置':e.message});}
  }
  if(req.method!=='GET')return json(res,405,{error:'方法不支持'});
- const assets={'/':'web/index.html','/app.js':'web/app.js','/checkout.js':'web/checkout.js','/order-state.js':'shared/order-state.mjs','/nutrition.js':'shared/nutrition.mjs','/meal-info.js':'web/meal-info.js','/api.js':'web/api.js','/discovery.js':'shared/discovery.mjs','/radar.js':'web/radar.js','/styles.css':'web/styles.css','/meal.svg':'web/meal.svg','/manifest.webmanifest':'web/manifest.webmanifest','/icon.svg':'web/icon.svg'};
+ const assets={'/store-map.js':'web/store-map.js','/store-view.js':'shared/store-view.mjs','/':'web/index.html','/app.js':'web/app.js','/checkout.js':'web/checkout.js','/order-state.js':'shared/order-state.mjs','/nutrition.js':'shared/nutrition.mjs','/meal-info.js':'web/meal-info.js','/api.js':'web/api.js','/discovery.js':'shared/discovery.mjs','/radar.js':'web/radar.js','/styles.css':'web/styles.css','/meal.svg':'web/meal.svg','/manifest.webmanifest':'web/manifest.webmanifest','/icon.svg':'web/icon.svg'};
  const file=assets[url.pathname];if(!file)return json(res,404,{error:'页面不存在'});
  try{const content=await readFile(path.join(root,file));const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};res.setHeader('Cache-Control','no-store');res.writeHead(200,{'Content-Type':`${types[path.extname(file)]}; charset=utf-8`});res.end(content);}catch{json(res,500,{error:'资源读取失败'});}
 });
-server.on('error',error=>{console.error(error.code==='EADDRINUSE'?`端口 ${port} 已被占用，请使用另一端口或确认已有服务。`:'本地服务启动失败');process.exitCode=1;});
+server.on('error',error=>{console.error(error.code==='EADDRINUSE'?`端口 ${port} 已被占用，请使用另一端口或确认已有服务。`:['EPERM','EACCES'].includes(error.code)?`当前环境不允许监听本地端口 ${port}（${error.code}）。请在本机终端运行 npm run start:workbuddy，或双击“启动麦麦助手.command”。`:'本地服务启动失败');process.exitCode=1;});
 server.listen(port,'127.0.0.1',()=>console.log(`麦麦预算助手 http://127.0.0.1:${port} · ${token?'真实连接已配置':'真实连接未配置，请先连接麦当劳 MCP'}`));
