@@ -46,9 +46,9 @@ export function createCheckoutUI({api}){
    ${r.message?`<p class="checkout-note warning">${esc(r.message)}</p>`:''}
    ${o.status==='1'&&!o.payUrl?`<p class="checkout-note warning">${o.paymentExpired?'官方支付时限已过，请更新状态或到官方渠道核对，勿重复付款。':'金额、预算或支付地址尚未通过核对，支付按钮暂不可用。请先更新状态或在官方渠道核对。'}</p>`:''}
    ${o.payUrl?`<label class="checkout-ack"><input id="order-reviewed" type="checkbox" ${reviewed?'checked':''}><span>我已核对门店、餐品、杯型、金额及取餐方式或配送地址</span></label>
-    <a id="official-pay" class="primary checkout-pay is-disabled" aria-disabled="true" tabindex="-1" target="_blank" rel="noopener noreferrer">打开官方支付页面 ↗</a>
-    <button id="show-payment-qr" type="button" class="checkout-refresh full" disabled>手机扫码支付 · 显示二维码</button>
-    <p class="small-note">付款由麦当劳官方收银台完成。支付宝是否可选以收银台实际展示为准；此处生成的是官方支付链接二维码。</p><div id="payment-qr-area" class="payment-qr-area" ${qr?'':'hidden'}>${qr?`<img src="${esc(qr)}" alt="此订单的麦当劳官方支付链接二维码" width="280" height="280"><p>用手机扫码，核对收款方和金额后付款。支付二维码仅供本人使用，请勿公开分享。</p>`:''}</div>`:''}
+    <a id="official-pay" class="primary checkout-pay is-disabled" aria-disabled="true" tabindex="-1" target="_blank" rel="noopener noreferrer">打开官方扫码说明页 ↗</a>
+    <button id="show-payment-qr" type="button" class="checkout-refresh full" disabled>用麦当劳 App 扫码 · 显示二维码</button>
+    <p class="small-note">请在麦当劳 App 内用“扫一扫”扫描下方二维码，进入这笔订单付款。App 登录手机号需与 MCP 账号一致；支付方式以 App 收银台实际展示为准。</p><div id="payment-qr-area" class="payment-qr-area" ${qr?'':'hidden'}>${qr?`<img src="${esc(qr)}" alt="此订单的麦当劳 App 支付入口二维码" width="280" height="280"><p>用麦当劳 App 扫码进入当前订单。若仍未打开收银台，请在 App“我的订单”找到这笔待支付订单继续；不要重新创建。二维码仅供本人使用。</p>`:''}</div>`:''}
    ${o.pickupCode?`<div class="pickup-number"><small>官方返回的取餐码</small><strong>${esc(o.pickupCode)}</strong><button id="copy-pickup" class="checkout-refresh" type="button">复制取餐码</button></div>`:paidStatus(o.status)&&!o.delivery?'<p class="checkout-note">官方尚未返回取餐码。订单已支付或进入配餐阶段不代表餐品已可领取；可继续查询，或在官方 App 查看。</p>':''}
    ${o.lockerCode?`<div class="pickup-number"><small>官方返回的取餐柜密码</small><strong>${esc(o.lockerCode)}</strong></div>`:''}
    <p id="order-watch-notice" class="small-note" role="status">${watch?.isActive()?'正在等待官方更新。':'点击更新可查询官方最新结果；打开支付页不代表付款成功。'}</p>

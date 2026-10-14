@@ -13,14 +13,21 @@ const account=token=>createHash('sha256').update(token).digest('hex');
 const active=r=>['submitting','uncertain'].includes(r.state)||(r.state==='created'&&!['6','7','8'].includes(r.order?.status));
 const fail=(message,code,status=409)=>{throw new ServiceError(message,code,status);};
 export function paymentURL(value,orderId){
- try {const u=new URL(value);return u.protocol==='https:'&&u.hostname==='m.mcd.cn'&&!u.port&&!u.username&&!u.password&&!u.hash&&u.pathname==='/mcp/scanToPay'&&[...u.searchParams].length===1&&u.searchParams.get('orderId')===orderId?u.href:null;}catch{return null;}
+ try {const u=new URL(value);return u.protocol==='https:'&&u.hostname==='m.mcd.cn'&&!u.port&&!u.username&&!u.password&&!u.hash&&['/mcp/scanToPay','/mcp/jumpToApp','/mcp/jumpToApp/'].includes(u.pathname)&&[...u.searchParams].length===1&&u.searchParams.get('orderId')===orderId?u.href:null;}catch{return null;}
+}
+export function appPaymentURL(value,orderId){
+ // Verified in the official scanToPay page's own QRCodeSVG value (2026-10-14).
+ // scanToPay is an instruction page; its QR targets jumpToApp for this order.
+ const verified=paymentURL(value,orderId);if(!verified)return null;
+ const u=new URL(verified);if(u.pathname==='/mcp/scanToPay')u.pathname='/mcp/jumpToApp';return u.href;
 }
 export function orderView(data,orderId,url,budgetFen,now=Date.now()){
  if(data?.orderId!==orderId)fail('订单查询返回的编号不一致，请在麦当劳官方渠道核对。','ORDER_MISMATCH',502);
  let amountFen=null;try{if(data.realTotalAmount!==undefined)amountFen=yuanToFen(data.realTotalAmount);}catch{}
  const state=orderState(data),status=state.status,deadline=paymentDeadline(data.expirePayTime),paymentExpired=deadline!==null&&deadline<=now;
+ const payUrl=status==='1'&&!paymentExpired&&amountFen!==null&&amountFen<=budgetFen?paymentURL(url,orderId):null;
  return {orderId,...state,amountFen,budgetFen,paymentExpired,
-  withinBudget:amountFen!==null&&amountFen<=budgetFen,payUrl:status==='1'&&!paymentExpired&&amountFen!==null&&amountFen<=budgetFen?paymentURL(url,orderId):null,
+  withinBudget:amountFen!==null&&amountFen<=budgetFen,payUrl,appPayUrl:payUrl?appPaymentURL(payUrl,orderId):null,
   delivery:data.deliveryInfo?.deliveryAddress?{address:String(data.deliveryInfo.deliveryAddress||''),addressDetail:String(data.deliveryInfo.addressDetail||''),contactName:String(data.deliveryInfo.customerNickname||''),phoneHint:maskedPhone(data.deliveryInfo.mobilePhone),estimatedAt:String(data.deliveryInfo.expectDeliveryTime||'')}:null,
   storeName:String(data.storeName||''),storeAddress:String(data.storeAddress||''),takeWay:String(data.takeWay||''),
   products:(Array.isArray(data.orderProductList)?data.orderProductList:[]).map(p=>({name:String(p.productName||''),quantity:p.quantity,
@@ -107,7 +114,7 @@ export function checkoutService({openMcp=connect,clock=Date.now,journal=path.res
  }
  async function payment(token,id){
   // Recheck the owned order, not a URL supplied by the browser. No new transaction.
-  const receipt=await refresh(token,id),url=receipt.order?.payUrl;
+  const receipt=await refresh(token,id),url=receipt.order?.appPayUrl;
   return {receipt,qrDataUrl:url?await QRCode.toDataURL(url,{errorCorrectionLevel:'M',margin:4,width:280}):null};
  }
  return {prepare,confirm,recent,refresh,payment};

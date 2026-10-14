@@ -63,3 +63,7 @@ Node.js 服务使用官方 MCP SDK，配置 MCD_MCP_TOKEN 后从固定官方地�
 `POST /api/checkout-payment` 接收本机 receiptId，服务端核对账号归属并重新 query-order，再对有效官方支付链接用本机 qrcode 库生成PNG data URI。不接受客户端传来的付款URL、金额或任意订单编号；没有访问外部二维码服务。尚未接入麦当劳的独立支付宝交易API。
 
 订单状态兼容官方文档的中文 orderStatus 与明确的数字码。未知不视为已支付，pickupCode 与 lockerCode 只在已确认支付/履约状态下按实际字段显示。见 [支付流程](docs/PAYMENT_FLOW.md)。
+
+## 0.8.1 二维码入口修复
+
+官方`scanToPay`说明页的QRCodeSVG编码同域`jumpToApp`。`appPaymentURL`只从已通过域名、路径及原订单编号检查的返回链接得到这个已核实目标；QR编码appPayUrl，原payUrl保留为官方说明页。官方跳转页处理App用户代理和原生收银台唤起，不在本产品伪造支付结果。详见[现场核对](docs/PAYMENT_FLOW.md#081-扫码循环修复)。

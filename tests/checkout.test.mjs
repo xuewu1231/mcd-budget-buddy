@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm,writeFile} from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
-import {checkoutService,paymentURL,orderView} from '../server/checkout.mjs';
+import {checkoutService,paymentURL,appPaymentURL,orderView} from '../server/checkout.mjs';
 const detail={name:'鸡排堡套餐',rounds:[{id:1,name:'主食',choices:[{code:'burger',name:'鸡排堡'}]},{id:2,name:'小食',choices:[{code:'fries',name:'中薯条'}]},{id:3,name:'饮料',choices:[{code:'zero',name:'无糖可乐中杯'},{code:'sugar',name:'含糖可乐'}]}]};
 const input={storeCode:'store',code:'combo',budget:'30',sugarFree:true,city:'北京',keyword:'大钟寺',changes:{1:'burger',2:'fries',3:'zero'}};
 const quote={price:2290,takeWayList:[{code:'away',title:'打包带走'}]};
@@ -28,7 +28,7 @@ test('创建锁仍在占用时，已知订单仍可只读查询最新状态',asy
 
 test('支付二维码本机生成且解码为该订单官方链接；查状态不再次创建',async t=>{
  const {PNG}=await import('pngjs'),{default:jsQR}=await import('jsqr');const f=await fixture(t),d=await f.service.prepare('token',input),r=await f.service.confirm('token',{draftId:d.draftId,takeWayCode:'away',confirm:true});
- const result=await f.service.payment('token',r.receiptId);const png=PNG.sync.read(Buffer.from(result.qrDataUrl.split(',')[1],'base64'));const decoded=jsQR(new Uint8ClampedArray(png.data),png.width,png.height);assert.equal(decoded.data,r.order.payUrl);assert.equal(f.calls.filter(c=>c.name==='create-order').length,1);assert.equal(f.calls.filter(c=>c.name==='query-order').length,1);
+ const result=await f.service.payment('token',r.receiptId);const png=PNG.sync.read(Buffer.from(result.qrDataUrl.split(',')[1],'base64'));const decoded=jsQR(new Uint8ClampedArray(png.data),png.width,png.height);assert.equal(decoded.data,'https://m.mcd.cn/mcp/jumpToApp?orderId=test-order');assert.equal(f.calls.filter(c=>c.name==='create-order').length,1);assert.equal(f.calls.filter(c=>c.name==='query-order').length,1);
  await assert.rejects(f.service.payment('other',r.receiptId));
 });
 test('已支付、过期或金额未知不生成支付二维码，取餐号与柜码来自查询',async t=>{
@@ -42,3 +42,5 @@ test('已支付、过期或金额未知不生成支付二维码，取餐号与�
 test('重复订单参数、额外跳转参数或片段不能成为付款地址',()=>{
  for(const suffix of ['&orderId=other','&redirect=https://evil.example','#other'])assert.equal(paymentURL('https://m.mcd.cn/mcp/scanToPay?orderId=test-order'+suffix,'test-order'),null);
 });
+
+test('官方外层说明页转换为内部App跳转二维码，保留原订单且拒绝任意路径',()=>{const outer='https://m.mcd.cn/mcp/scanToPay?orderId=test-order',inner='https://m.mcd.cn/mcp/jumpToApp?orderId=test-order';assert.equal(appPaymentURL(outer,'test-order'),inner);assert.equal(appPaymentURL(inner,'test-order'),inner);assert.equal(appPaymentURL(outer,'other'),null);assert.equal(appPaymentURL(outer.replace('scanToPay','other'),'test-order'),null);assert.equal(appPaymentURL(outer+'&redirect=other','test-order'),null);});

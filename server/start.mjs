@@ -13,7 +13,7 @@ import {ServiceError} from './errors.mjs';
 import {checkoutService} from './checkout.mjs';
 import metadata from '../package.json' with {type:'json'};
 const root=fileURLToPath(new URL('../',import.meta.url));
-const port=Number(process.env.PORT||4323);
+const port=Number(process.env.PORT||4324);
 let token=process.env.MCD_MCP_TOKEN?.replace(/^Bearer\s+/i,'').trim();
 let authSource=token?'env':'none';
 if(!token && process.env.USE_WORKBUDDY_MCP === '1') {

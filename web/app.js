@@ -12,7 +12,7 @@ const scrollTo=e=>e.scrollIntoView({behavior:reducedMotion()?'auto':'smooth',blo
 const controls=['fulfillment','load-addresses','delivery-address','need-tableware','city','location','budget','preference','priority','flavor','cup','sugar-free','brief','parse-brief','find-stores','recommend','toggle-conditions','regenerate-plans','restore-conditions','compare-prices','compare-plan','compare-store','activity-to-plan','clear-activity-context'];
 installInteractionFeedback();
 let checkingConnection = false, actionButton = null;
-const connectionMonitor=createConnectionMonitor({probe:()=>requestJSON('/api/status',{timeoutMs:8000}),expectedVersion:'0.8.0',onChange:renderConnection});
+const connectionMonitor=createConnectionMonitor({probe:()=>requestJSON('/api/status',{timeoutMs:8000}),expectedVersion:'0.8.1',onChange:renderConnection});
 function renderConnection(status){
  const kind=status.kind,online=kind==='online';
  if(online){state.serviceOnline=true;state.liveReady=status.liveReady;$('service-banner').hidden=true;$('live-status-label').textContent=status.liveReady?'麦当劳连接已配置':'请先连接麦当劳 MCP';$('connection-status').textContent=status.liveReady?`本地服务已连接 · ${status.authSource==='workbuddy'?'已读取 WorkBuddy 配置':'Token 已配置'}；实际接口将在查询时验证。`:'本地服务已连接，请先配置麦当劳 MCP 后查询。';}
@@ -21,7 +21,7 @@ function renderConnection(status){
   const banner=['offline','incompatible','slow'].includes(kind);state.serviceOnline=false;state.liveReady=false;$('service-banner').hidden=!banner;
   $('live-status-label').textContent=kind==='uncertain'?'连接暂未确认，自动重试中':kind==='slow'?'连接检查超时':kind==='incompatible'?'本地服务需要更新':'本地服务离线';
   $('service-banner-title').textContent=kind==='slow'?'连接检查超时，服务状态尚未确认':kind==='incompatible'?'本地服务需要更新':'暂时无法连接本地点餐服务';
-  $('service-banner-message').textContent=kind==='slow'?'这次检查没有及时返回，不代表服务已关闭。可以重新检查；你的预算与当前方案仍保留。':kind==='incompatible'?status.message:`请确认本页地址 ${location.origin} 的服务已启动，再点重连。新版启动文件默认使用4323；若自定义了端口，以启动终端显示的网页地址为准。当前页面使用 ${location.port}。`;
+  $('service-banner-message').textContent=kind==='slow'?'这次检查没有及时返回，不代表服务已关闭。可以重新检查；你的预算与当前方案仍保留。':kind==='incompatible'?status.message:`请确认本页地址 ${location.origin} 的服务已启动，再点重连。新版启动文件默认使用4324；若自定义了端口，以启动终端显示的网页地址为准。当前页面使用 ${location.port}。`;
   $('connection-status').textContent=status.message;
  }
  $('connection').innerHTML=`${icon('settings')}<span>${kind==='offline'?'连接待恢复':'连接设置'}</span>`;
