@@ -14,6 +14,20 @@ export function storeCoupons(data){
 }
 export const couponView=c=>({ref:c.ref,name:c.name,product:c.product,validity:c.validity});
 export const publicQuoteRequest=request=>({...request,items:request.items.map(({couponId,couponCode,...item})=>item)});
+export async function queryOwnedCoupons(m,scope){
+ const [store,wallet]=await Promise.allSettled([
+  m.call('query-store-coupons',scope).then(storeCoupons),
+  m.call('query-my-coupons',{page:'1',pageSize:'200'})
+ ]);
+ const list=store.status==='fulfilled'?store.value:null;
+ const total=wallet.status==='fulfilled'?wallet.value?.totalCount:null;
+ const accountReady=Number.isSafeInteger(total)&&total>=0;
+ const walletReason=wallet.status==='rejected'?wallet.reason?.code:null;
+ const accountError=accountReady?null:wallet.status==='fulfilled'?'卡包数量格式未确认，不代表没有券。':walletReason==='MCP_AUTH'?'卡包认证未通过，请检查麦当劳连接；不代表没有券。':walletReason==='MCP_SCHEMA'?'卡包接口参数已变化，请更新版本后重试；不代表没有券。':'卡包暂时无法读取，可点击更新已有券重试；不代表没有券。';
+ return {ownedTotal:accountReady?total:null,accountStatus:accountReady?'ready':wallet.status==='fulfilled'?'unknown':'error',accountError,
+  storeStatus:list?'ready':'error',storeError:list?null:'当前门店适用券暂时无法读取，请重试，暂不能确定是否有可用券。',
+  count:list?.count??null,coupons:list?list.usable.map(couponView):[],unsupported:list?.unsupported||[],observedAt:new Date().toISOString()};
+}
 export function couponForProduct(list,productCode,ref){return list.usable.find(c=>c.product.code===productCode&&(!ref||c.ref===ref));}
 export function withCoupon(request,coupon){return {...request,items:request.items.map((item,i)=>i===0?{...item,couponId:coupon.id,couponCode:coupon.code}:item)};}
 export async function resolveCoupon(m,scope,productCode,ref){

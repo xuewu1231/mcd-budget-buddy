@@ -111,6 +111,28 @@ export function samePlanContext(quoted, current) {
 export function quotedPlanUsable(plan, quoted, current) {
   return Boolean(plan) && samePlanContext(quoted, current) && !plan.dirty && plan.withinBudget === true && budgetView(plan.priceFen, Math.round(Number(current.budget) * 100)).kind === 'within';
 }
+export function canRepriceCurrentPlans(quoted,current){
+ if(!samePlanContext(quoted,quoted)||!samePlanContext(current,current))return false;
+ return samePlanContext({...quoted,budget:current.budget,useCoupons:current.useCoupons,needTableware:current.needTableware},current);
+}
+// Commit the returned list only after every quote succeeds. Never mutate old plans.
+export async function repriceCurrentPlans(plans,current,{load,onProgress=()=>{}}){
+ if(!Array.isArray(plans)||!plans.length||plans.length>3)throw new RequestError('请先生成搭配。','NO_PLANS');
+ const results=[];
+ for(const [i,old] of plans.entries()){
+  const changes=Object.fromEntries(old.roundList.map(r=>[r.round,r.comboItemList[0].code]));Object.assign(changes,old.changes||{});
+  onProgress(i+1,plans.length);
+  const data=await load({...current,code:old.id,changes,...(current.useCoupons===true&&old.coupon?.ref?{couponRef:old.coupon.ref}:{})});
+  const plan=data.plan,selected=Object.fromEntries((plan?.roundList||[]).map(r=>[r.round,r.comboItemList?.[0]?.code]));
+  if(!plan||plan.id!==old.id||!Number.isSafeInteger(plan.priceFen)||plan.priceFen<0||Object.keys(selected).length!==Object.keys(changes).length||Object.keys(changes).some(id=>changes[id]!==selected[id]))throw new RequestError('返回的搭配或金额未能确认，请重新选择后核价。','SELECTION_CHANGED');
+  results.push({...plan,name:old.name});
+ }
+ return results;
+}
+export function ownedCouponMarkup(d){
+ const esc=escapeHTML,account=d.accountStatus==='ready'?`${d.ownedTotal} 张`:'读取未确认',store=d.storeStatus==='ready'?`${d.count} 张`:'读取未确认';
+ return `<div class="coupon-status-grid"><div><small>我的卡包</small><strong>${esc(account)}</strong>${d.accountError?`<p>${esc(d.accountError)}</p>`:'<p>账号已有券总数，未领取新券</p>'}</div><div><small>这家店当前可用</small><strong>${esc(store)}</strong>${d.storeError?`<p>${esc(d.storeError)}</p>`:'<p>按当前门店和用餐方式查询</p>'}</div></div>${d.storeStatus!=='ready'?'<p>门店适用情况未确认，暂不能据此判断有没有可用券。</p>':d.count===0?'<p>这家店当前没有返回可用的已有券，仍可按无券实价找搭配。</p>':`<ul>${d.coupons.map(c=>`<li><strong>${esc(c.name)}</strong> · 适用餐品：${esc(c.product.name)}</li>`).join('')}</ul><p>门店可用还需匹配餐品并实际核价，创建订单时才可能消耗券。</p>`}${d.unsupported.map(c=>`<p>${esc(c.name)}：${esc(c.reason)}</p>`).join('')}<p class="micro">本次不领券 · 查询（北京时间）：${esc(new Date(d.observedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}))}</p>`;
+}
 export function proposalDifference(plan, first) {
   if (!first || plan === first) return '先看这套，再挑备选';
   if (plan.items[0] !== first.items[0]) return `换主食 · ${plan.items[0]}`;

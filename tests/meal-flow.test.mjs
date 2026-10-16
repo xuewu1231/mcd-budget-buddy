@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
 import {recommend,recalculate} from '../server/planner.mjs';
 import {checkoutService} from '../server/checkout.mjs';
+import {repriceCurrentPlans} from '../web/api.js';
 const detail={name:'链路测试套餐',rounds:[
  {id:1,name:'主食',choices:[{code:'burger',name:'鸡排堡',isDefault:true},{code:'beef',name:'牛肉汉堡'}]},
  {id:2,name:'小食',choices:[{code:'fries',name:'中薯条',isDefault:true},{code:'potato',name:'脆薯饼'}]},
@@ -31,6 +32,9 @@ for(const fulfillment of ['pickup','delivery'])test(`${fulfillment}完整链路�
  const result=await recommend('fixture','store',input,{openMcp});assert.equal(result.plans.length,3);assert.ok(result.plans[0].coupon);assert.equal(JSON.stringify(result.plans).includes('private-code'),false);
  const chosen=result.plans[0],changes={1:'burger',2:'potato',3:'zero'};
  const revised=await recalculate('fixture','store',chosen.id,changes,{...input,couponRef:chosen.coupon.ref},{openMcp});assert.equal(revised.priceFen,fulfillment==='delivery'?3000:2300);assert.equal(revised.coupon.differenceFen,300);
+ const load=body=>recalculate('fixture',body.storeCode,body.code,body.changes,body,{openMcp}).then(plan=>({plan}));
+ const [without]=await repriceCurrentPlans([revised],{...input,useCoupons:false},{load});assert.equal(without.priceFen,revised.priceFen+300);assert.equal(without.coupon,null);assert.deepEqual(without.roundList,revised.roundList);
+ const [again]=await repriceCurrentPlans([without],input,{load});assert.equal(again.priceFen,revised.priceFen);assert.deepEqual(again.roundList,revised.roundList);assert.equal(again.coupon.name,'已有测试券');
  const checkout=checkoutService({openMcp,journal:path.join(dir,'receipts.json')});
  const prepared=await checkout.prepare('fixture',{...input,code:chosen.id,changes,couponRef:revised.coupon.ref});assert.equal(prepared.priceFen,revised.priceFen);assert.equal(calls.some(c=>c.name==='create-order'),false);
  const confirm={draftId:prepared.draftId,confirm:true,...(fulfillment==='pickup'?{takeWayCode:'away'}:{remark:'测试备注'})};

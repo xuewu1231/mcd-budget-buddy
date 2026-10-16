@@ -13,7 +13,7 @@ export function unwrap(result) {
   return body.data;
 }
 export async function connect(token,{checkout=false}={}) {
-  const client = new Client({name:'mcd-budget-buddy',version:'0.9.1'});
+  const client = new Client({name:'mcd-budget-buddy',version:'0.9.2'});
   const transport = new StreamableHTTPClientTransport(new URL('https://mcp.mcd.cn'), {requestInit:{headers:{Authorization:`Bearer ${token}`}}});
   try {
     await client.connect(transport);
@@ -24,7 +24,7 @@ export async function connect(token,{checkout=false}={}) {
     return {schema:name=>tools.get(name)?.inputSchema,async call(name,args) {
       if (!allowed.includes(name) || !tools.has(name)) throw new Error('工具不在当前流程的允许范围');
       const valid=ajv.compile(tools.get(name).inputSchema);
-      if(!valid(args)) throw new Error(`工具参数与实时定义不匹配：${name}`);
+      if(!valid(args)) throw new ServiceError(`工具参数与实时定义不匹配：${name}`,'MCP_SCHEMA',502);
       try {return unwrap(await client.callTool({name,arguments:args},undefined,{timeout:25000}));} catch(e){if(e instanceof ServiceError)throw e;throw connectionError(e);}
     },close:()=>client.close()};
   } catch(e) {await client.close().catch(()=>{}); throw connectionError(e);}

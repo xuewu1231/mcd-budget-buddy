@@ -54,6 +54,8 @@ export async function recalculate(token,storeCode,code,changes,input,{openMcp=co
  try {
  const scene=await resolveScenario(m,input,storeCode),scope=scene.scope;
  const detail=await m.call('query-meal-detail',{...scope,code});
+ const ids=(detail.rounds||[]).map(r=>String(r.id));
+ if(!changes||Array.isArray(changes)||ids.length!==Object.keys(changes).length||ids.some(id=>typeof changes[id]!=='string'||!changes[id]))throw new ServiceError('套餐选项已变化，请重新选择完整搭配后核价。','SELECTION_CHANGED',409);
  const roundList=makeSelection(detail,c.sugarFree,changes);
  const args={...scope,items:[{productCode:code,quantity:1,roundList}],needTableware:input.needTableware===true};
  verifyPlan(args,detail,c);let coupons=null,couponIssue=null;

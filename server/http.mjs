@@ -1,7 +1,7 @@
 import {addresses,addressView,fulfillment} from './scenarios.mjs';
 import {pointView} from './nutrition.mjs';
 import {resolveScenario} from './scenarios.mjs';
-import {storeCoupons,couponView} from './coupons.mjs';
+import {queryOwnedCoupons} from './coupons.mjs';
 import {connect} from './mcp.mjs';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -38,8 +38,8 @@ return async(req,res)=>{
    if(url.pathname==='/api/addresses'||url.pathname==='/api/points'){const m=await openMcp(token);try{return json(res,200,url.pathname==='/api/addresses'?{addresses:(await addresses(m)).map(addressView)}:pointView(await m.call('query-my-account',{})));}finally{await m.close();}}
    if(url.pathname==='/api/coupons'){
     if(typeof b.storeCode!=='string'||!b.storeCode||b.storeCode.length>60)throw new Error('请先选择门店');
-    const m=await openMcp(token);try{const scene=await resolveScenario(m,b,b.storeCode),list=storeCoupons(await m.call('query-store-coupons',scene.scope));let ownedTotal=null,accountError=null;try{const d=await m.call('query-my-coupons',{page:1,pageSize:20});if(Number.isSafeInteger(d.totalCount)&&d.totalCount>=0)ownedTotal=d.totalCount;else accountError='卡包总数格式未确认';}catch{accountError='卡包查询未成功，不代表没有券';}
-     return json(res,200,{ownedTotal,accountError,count:list.count,coupons:list.usable.map(couponView),unsupported:list.unsupported,observedAt:new Date().toISOString()});
+    const m=await openMcp(token);try{const scene=await resolveScenario(m,b,b.storeCode);
+     return json(res,200,await queryOwnedCoupons(m,scene.scope));
     }finally{await m.close();}
    }
    if(url.pathname==='/api/checkout-prepare')return json(res,200,await checkout.prepare(token,b));
